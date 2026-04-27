@@ -1,7 +1,7 @@
-import AppRoutes from "./routes/AppRoutes";
+import VendorManagement from "./pages/VendorManagement";
 
 function App() {
-  return <AppRoutes />;
+  return <VendorManagement />;
 }
 
 export default App;
