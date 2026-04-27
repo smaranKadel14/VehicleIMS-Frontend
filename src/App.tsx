@@ -1,7 +1,7 @@
-import AppRoutes from "./routes/AppRoutes";
+import CustomerDirectory from "./pages/CustomerDirectory";
 
 function App() {
-  return <AppRoutes />;
+  return <CustomerDirectory />;
 }
 
 export default App;
