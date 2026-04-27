@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, Fingerprint, ShieldCheck, Activity, HelpCircle } from 'lucide-react';
+import { Mail, Lock, ArrowRight, ShieldCheck, Activity, HelpCircle } from 'lucide-react';
 import loginBg from '../../assets/auth-img/login-bg.png';
 
 const Login: React.FC = () => {
