@@ -66,9 +66,9 @@ const Login: React.FC = () => {
                   <label className="label text-[11px] uppercase tracking-wider text-tertiary">
                     Security Key
                   </label>
-                  <button type="button" className="text-[10px] font-bold text-primary hover:underline underline-offset-4 mb-1">
+                  <Link to="/forgot-password" title="Forgot Password" className="text-[10px] font-bold text-primary hover:underline underline-offset-4 mb-1">
                     Forgot Password
-                  </button>
+                  </Link>
                 </div>
                 <div className="relative group">
                   <input 

@@ -30,9 +30,9 @@ const Register: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col font-body">
+    <div className="h-screen bg-white flex flex-col font-body overflow-hidden">
       {/* Main Content Area */}
-      <div className="flex-grow flex flex-col lg:flex-row items-center justify-center px-6 py-12 lg:px-24 gap-16 max-w-[1600px] mx-auto w-full">
+      <div className="flex-grow overflow-y-auto flex flex-col lg:flex-row items-center justify-center px-6 py-8 lg:px-24 gap-12 max-w-[1600px] mx-auto w-full">
         
         {/* Left Side: Brand & Hero */}
         <div className="flex-1 space-y-10 max-w-[600px]">
@@ -47,7 +47,7 @@ const Register: React.FC = () => {
 
           {/* Hero Image Placeholder */}
           <div className="relative group">
-            <div className="aspect-[16/9] bg-secondary/20 rounded-2xl overflow-hidden border border-secondary/50 shadow-inner">
+            <div className="aspect-video bg-secondary/20 rounded-2xl overflow-hidden border border-secondary/50 shadow-inner">
               <img 
                 src={gradient} 
                 alt="Industrial Engineering" 
