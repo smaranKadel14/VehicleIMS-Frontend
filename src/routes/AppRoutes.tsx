@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
-import Login from "../pages/admin/Login";
-import Register from "../pages/admin/Register";
-import ForgotPassword from "../pages/admin/ForgotPassword";
+import Login from "../pages/auth/Login";
+import Register from "../pages/auth/Register";
+import ForgotPassword from "../pages/auth/ForgotPassword";
 import VendorManagement from "../pages/VendorManagement";
 import CustomerDirectory from "../pages/CustomerDirectory";
 
