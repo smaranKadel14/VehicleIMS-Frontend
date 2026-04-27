@@ -1,9 +1,12 @@
-import CustomerDirectory from "./pages/CustomerDirectory";
-import VendorManagement from "./pages/VendorManagement";
+import { BrowserRouter as Router } from "react-router-dom";
+import AppRoutes from "./routes/AppRoutes";
 
 function App() {
-  return <VendorManagement />;
-  return <CustomerDirectory />;
+  return (
+    <Router>
+      <AppRoutes />
+    </Router>
+  );
 }
 
 export default App;
