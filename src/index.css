@@ -1,3 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    /* Theme Colors (RGB format for opacity support) */
+    --primary: 43 43 43;      /* #2B2B2B */
+    --secondary: 212 212 212; /* #D4D4D4 */
+    --tertiary: 179 179 179;  /* #B3B3B3 */
+    --neutral: 255 255 255;   /* #FFFFFF */
+    
+    /* Functional Colors */
+    --primary-foreground: 255 255 255;
+    --secondary-foreground: 43 43 43;
+  }
+
+  body {
+    @apply font-body bg-neutral text-primary antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading font-bold tracking-tight;
+  }
+}
+
+@layer components {
+  /* Reusable Button System */
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-2.5 rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-primary/20;
+  }
+
+  .btn-primary {
+    @apply btn bg-primary text-neutral hover:opacity-90 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn bg-secondary text-primary hover:bg-tertiary/30 active:scale-[0.98];
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-primary text-primary hover:bg-primary hover:text-neutral active:scale-[0.98];
+  }
+
+  .btn-inverted {
+    @apply btn bg-neutral text-primary border border-secondary hover:bg-secondary/10 active:scale-[0.98] shadow-sm;
+  }
+
+  /* Premium Card System */
+  .card {
+    @apply bg-neutral border border-secondary rounded-xl shadow-sm p-6 transition-all duration-200;
+  }
+
+  .card-interactive {
+    @apply hover:shadow-md hover:border-tertiary cursor-pointer active:scale-[0.99];
+  }
+
+  /* Form Element Styles */
+  .input-group {
+    @apply flex flex-col gap-1.5 mb-4;
+  }
+
+  .label {
+    @apply text-sm font-semibold text-primary/80;
+  }
+
+  .input {
+    @apply w-full px-4 py-2.5 bg-neutral border border-secondary rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary transition-all duration-200 placeholder:text-tertiary;
+  }
+}
