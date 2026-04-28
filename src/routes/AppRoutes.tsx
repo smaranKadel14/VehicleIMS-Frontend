@@ -2,9 +2,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
-import VendorManagement from "../pages/VendorManagement";
-import CustomerDirectory from "../pages/CustomerDirectory";
-import ProfilePage from "../pages/ProfilePage";
+import VendorManagement from "../pages/admin/VendorManagement";
+import CustomerDirectory from "../pages/staff/CustomerDirectory";
+import ProfilePage from "../pages/customer/ProfilePage";
 
 
 function AppRoutes() {
