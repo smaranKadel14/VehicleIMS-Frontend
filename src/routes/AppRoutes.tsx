@@ -5,6 +5,7 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import VendorManagement from "../pages/admin/VendorManagement";
 import CustomerDirectory from "../pages/staff/CustomerDirectory";
 import ProfilePage from "../pages/customer/ProfilePage";
+import CustomerDashboard from "../pages/customer/Dashboard";
 
 
 function AppRoutes() {
@@ -16,6 +17,7 @@ function AppRoutes() {
       <Route path="/vendors" element={<VendorManagement />} />
       <Route path="/customers" element={<CustomerDirectory />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/dashboard" element={<CustomerDashboard />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Fallback for undefined routes */}
       <Route path="*" element={<Navigate to="/login" replace />} />
