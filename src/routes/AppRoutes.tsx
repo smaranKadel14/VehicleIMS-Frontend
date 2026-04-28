@@ -4,6 +4,7 @@ import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import VendorManagement from "../pages/VendorManagement";
 import CustomerDirectory from "../pages/CustomerDirectory";
+import CustomerHistory from "../pages/CustomerHistory";
 
 function AppRoutes() {
   return (
@@ -13,6 +14,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/vendors" element={<VendorManagement />} />
       <Route path="/customers" element={<CustomerDirectory />} />
+      <Route path="/customer-history" element={<CustomerHistory />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Fallback for undefined routes */}
       <Route path="*" element={<Navigate to="/login" replace />} />
