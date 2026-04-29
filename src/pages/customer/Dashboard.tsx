@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import type { FC } from 'react';
 import { 
   LayoutDashboard, 
   Package, 
@@ -12,21 +14,95 @@ import {
   Clock, 
   CreditCard, 
   Zap, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   ShoppingBag, 
   Fuel, 
   Activity, 
   Gauge,
   ChevronRight,
-  ShieldCheck,
-  HelpCircle,
+  Shield,
+  Info,
   MoreVertical,
   ArrowUpRight,
-  MapPin
+  MapPin,
+  RefreshCcw
 } from 'lucide-react';
 import truckImg from '../../assets/customer-img/GT.png';
+import dashboardService from '../../services/dashboardService';
+import type { DashboardStats, Vehicle, Transaction } from '../../services/dashboardService';
+import authService from '../../services/authService';
 
-const CustomerDashboard: React.FC = () => {
+const CustomerDashboard: FC = () => {
+  const navigate = useNavigate();
+  const user = authService.getCurrentUser();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [statsData, vehiclesData, transactionsData] = await Promise.all([
+        dashboardService.getStats(),
+        dashboardService.getVehicles(),
+        dashboardService.getRecentTransactions(),
+      ]);
+      setStats(statsData);
+      setVehicles(vehiclesData);
+      setTransactions(transactionsData);
+    } catch (err: any) {
+      console.error("Error fetching dashboard data:", err);
+      setError("Failed to connect to the backend server. Please check if the API is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  if (loading && !stats) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <RefreshCcw className="w-12 h-12 text-primary animate-spin mx-auto" />
+          <p className="font-heading font-extrabold text-xl animate-pulse">SYNCHRONIZING WITH ENGINECORE...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !stats) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center p-6">
+        <div className="bg-white p-10 rounded-4xl border border-red-200 shadow-2xl max-w-lg text-center space-y-6">
+          <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mx-auto">
+             <Activity className="w-10 h-10 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-heading font-extrabold tracking-tighter">Connection Offline</h2>
+          <p className="text-primary/60 font-medium leading-relaxed">
+            We're unable to establish a secure link with the Enginecore servers. 
+            Technical details: {error}
+          </p>
+          <button 
+            onClick={fetchData}
+            className="w-full bg-black text-neutral py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
       {/* Sidebar */}
@@ -60,7 +136,10 @@ const CustomerDashboard: React.FC = () => {
             <button className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left">
               <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" /> Settings
             </button>
-            <button className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all text-sm font-bold group text-left">
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all text-sm font-bold group text-left"
+            >
               <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Sign Out
             </button>
           </div>
@@ -101,11 +180,11 @@ const CustomerDashboard: React.FC = () => {
               </div>
               <div className="flex items-center gap-4 ml-2 group cursor-pointer">
                 <div className="text-right">
-                  <p className="font-black text-sm leading-none">Marcus Sterling</p>
-                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">Senior Lead</p>
+                  <p className="font-black text-sm leading-none">{user?.userName || 'User'}</p>
+                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Member'}</p>
                 </div>
                 <div className="w-11 h-11 rounded-2xl overflow-hidden ring-4 ring-secondary/10 group-hover:ring-primary/10 transition-all shadow-lg">
-                  <img src="https://ui-avatars.com/api/?name=Marcus+Sterling&background=1a1a1a&color=fff&bold=true" alt="User" className="w-full h-full object-cover" />
+                  <img src={`https://ui-avatars.com/api/?name=${user?.userName || 'User'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
@@ -119,13 +198,13 @@ const CustomerDashboard: React.FC = () => {
             <div className="grid grid-cols-12 gap-8">
               {/* Welcome Banner */}
               <div className="col-span-12 lg:col-span-6 bg-white rounded-4xl p-10 relative overflow-hidden flex flex-col justify-between border border-secondary/20 shadow-sm animate-slide-up group">
-                <div className="relative z-10">
-                  <span className="inline-block px-3 py-1 bg-primary/5 text-[10px] font-black text-primary uppercase tracking-[0.2em] rounded-full mb-4">Personal Portal</span>
-                  <h2 className="text-5xl font-heading font-extrabold mb-4 tracking-tighter">Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-primary/60">Marcus.</span></h2>
-                  <p className="text-primary/60 text-base max-w-md leading-relaxed font-medium">
-                    Your V-Series GT is currently in peak performance. All systems report nominal status for the upcoming season.
-                  </p>
-                </div>
+                  <div className="relative z-10">
+                    <span className="inline-block px-3 py-1 bg-primary/5 text-[10px] font-black text-primary uppercase tracking-[0.2em] rounded-full mb-4">Personal Portal</span>
+                    <h2 className="text-5xl font-heading font-extrabold mb-4 tracking-tighter">Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-primary/60">{user?.userName?.split(' ')[0] || 'Rider'}.</span></h2>
+                    <p className="text-primary/60 text-base max-w-md leading-relaxed font-medium">
+                      Your V-Series GT is currently in peak performance. All systems report nominal status for the upcoming season.
+                    </p>
+                  </div>
                 <div className="flex gap-4 relative z-10">
                   <button className="bg-black text-neutral px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95">
                     Schedule Checkup
@@ -148,8 +227,8 @@ const CustomerDashboard: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-neutral/50 mb-1">Pending Balance</p>
-                  <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #INV-9021</p>
-                  <p className="text-4xl font-heading font-extrabold tracking-tighter">$482.<span className="text-2xl opacity-50">50</span></p>
+                  <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #{stats?.lastInvoiceNumber || 'N/A'}</p>
+                  <p className="text-4xl font-heading font-extrabold tracking-tighter">${stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
                 </div>
                 <button className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl">
                   Pay Balance
@@ -191,28 +270,36 @@ const CustomerDashboard: React.FC = () => {
                 </div>
 
                 <div className="bg-white rounded-5xl overflow-hidden border border-secondary/20 shadow-sm group hover:shadow-2xl transition-all duration-150 ease-out">
-                  <div className="relative h-[400px] bg-[#F9F9F9] overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-secondary/5 to-transparent pointer-events-none"></div>
-                    
-                    <img src={truckImg} alt="2023 V-Series GT" className="w-full h-full object-contain p-12 drop-shadow-2xl group-hover:scale-105 transition-transform duration-700" />
-                    
-                    <div className="absolute top-10 right-10 flex items-center gap-3 bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-white shadow-xl animate-fade-in">
-                      <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_#22c55e]"></div>
-                      <span className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">In Operation</span>
-                    </div>
+                  {vehicles.length > 0 ? (
+                    <>
+                      <div className="relative h-[400px] bg-[#F9F9F9] overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-secondary/5 to-transparent pointer-events-none"></div>
+                        
+                        <img src={vehicles[0].image || truckImg} alt={vehicles[0].name} className="w-full h-full object-contain p-12 drop-shadow-2xl group-hover:scale-105 transition-transform duration-700" />
+                        
+                        <div className="absolute top-10 right-10 flex items-center gap-3 bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-white shadow-xl animate-fade-in">
+                          <div className={`w-2.5 h-2.5 ${vehicles[0].status === 'In Operation' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-yellow-500'} rounded-full animate-pulse`}></div>
+                          <span className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">{vehicles[0].status}</span>
+                        </div>
 
-                    <div className="absolute bottom-10 left-12">
-                      <div className="inline-block px-3 py-1 bg-black text-neutral text-[9px] font-black uppercase tracking-widest rounded mb-3">Priority Asset</div>
-                      <h4 className="text-4xl font-heading font-extrabold text-black tracking-tighter">2023 V-Series GT</h4>
-                      <p className="text-xs font-bold text-tertiary tracking-[0.25em] uppercase mt-2 opacity-80">VIN: 1HGCM8263JA...441</p>
+                        <div className="absolute bottom-10 left-12">
+                          <div className="inline-block px-3 py-1 bg-black text-neutral text-[9px] font-black uppercase tracking-widest rounded mb-3">Priority Asset</div>
+                          <h4 className="text-4xl font-heading font-extrabold text-black tracking-tighter">{vehicles[0].name}</h4>
+                          <p className="text-xs font-bold text-tertiary tracking-[0.25em] uppercase mt-2 opacity-80">VIN: {vehicles[0].vin}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 border-t border-secondary/10 bg-white">
+                        <TelemetryStat label="Engine Health" value={vehicles[0].engineHealth} icon={Activity} color={vehicles[0].engineHealth.includes('Nominal') ? "text-green-500" : "text-primary"} />
+                        <TelemetryStat label="Tire Pressure" value={vehicles[0].tirePressure} icon={Gauge} />
+                        <TelemetryStat label="Odometer" value={vehicles[0].odometer} icon={Clock} />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="h-[400px] flex items-center justify-center bg-[#F9F9F9]">
+                      <p className="text-tertiary font-bold uppercase tracking-widest">No active vehicles found</p>
                     </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 border-t border-secondary/10 bg-white">
-                    <TelemetryStat label="Engine Health" value="98% Nominal" icon={Activity} color="text-green-500" />
-                    <TelemetryStat label="Tire Pressure" value="32 / 32 / 31 / 32" icon={Gauge} />
-                    <TelemetryStat label="Odometer" value="14,202 KM" icon={Clock} />
-                  </div>
+                  )}
 
                   <button className="w-full py-5 bg-[#F9F9F9] text-tertiary text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-black hover:text-white transition-all duration-150 ease-out border-t border-secondary/10">
                     <BarChart3 className="w-4 h-4" /> View Full Telemetry Data
@@ -252,20 +339,22 @@ const CustomerDashboard: React.FC = () => {
                   </div>
                   <div className="bg-white rounded-4xl border border-secondary/20 shadow-sm overflow-hidden group">
                     <div className="divide-y divide-secondary/10">
-                      <PurchaseItem 
-                        title="V-Carbon Intake Filter" 
-                        id="#3392" 
-                        date="Yesterday" 
-                        price="$129.00" 
-                        icon={Activity}
-                      />
-                      <PurchaseItem 
-                        title="Synthetic Lube X-Series" 
-                        id="#3381" 
-                        date="Oct 12" 
-                        price="$45.50" 
-                        icon={Clock}
-                      />
+                      {transactions.length > 0 ? (
+                        transactions.map(tx => (
+                          <PurchaseItem 
+                            key={tx.id}
+                            title={tx.title} 
+                            id={tx.orderId} 
+                            date={tx.date} 
+                            price={tx.price} 
+                            icon={ShoppingBag}
+                          />
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-tertiary font-bold uppercase tracking-widest text-xs">
+                          No recent transactions
+                        </div>
+                      )}
                     </div>
                     <button className="w-full py-6 bg-secondary/10 text-tertiary text-xs font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-all duration-150 ease-out">
                       Full Transaction History
@@ -279,23 +368,23 @@ const CustomerDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-8">
               <StatCard 
                 label="Fuel Economy" 
-                value="8.4 L/100" 
-                trend="2.1% FROM LAST MONTH" 
+                value={`${stats?.fuelEconomy || '0'} L/100`} 
+                trend="FROM LAST MONTH" 
                 trendUp={false}
                 icon={Fuel}
                 delay="delay-[600ms]"
               />
               <StatCard 
                 label="Total Maintenance" 
-                value="$2,410" 
+                value={`$${stats?.totalMaintenance.toLocaleString() || '0'}`} 
                 trend="SINCE REGISTRATION" 
                 icon={Wrench}
                 delay="delay-[700ms]"
               />
               <StatCard 
                 label="Next Service" 
-                value="1,402 KM" 
-                trend="EST. 18 DAYS AWAY" 
+                value={`${stats?.nextServiceDistance.toLocaleString() || '0'} KM`} 
+                trend="ESTIMATED DISTANCE" 
                 icon={Gauge}
                 delay="delay-[800ms]"
               />
@@ -311,9 +400,9 @@ const CustomerDashboard: React.FC = () => {
             <span className="opacity-30">© 2024 Enginecore Global</span>
           </div>
           <div className="flex gap-10">
-            <FooterLink icon={ShieldCheck} label="Safety Protocols" />
+            <FooterLink icon={Shield} label="Safety Protocols" />
             <FooterLink icon={Activity} label="Network Status" />
-            <FooterLink icon={HelpCircle} label="Support" />
+            <FooterLink icon={Info} label="Support" />
           </div>
         </footer>
       </div>

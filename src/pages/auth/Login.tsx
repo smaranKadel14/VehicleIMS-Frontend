@@ -1,13 +1,38 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, Lock, ArrowRight, ShieldCheck, Activity, HelpCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, ArrowRight, ShieldCheck, Activity, HelpCircle, Loader2 } from 'lucide-react';
+import authService from '../../services/authService';
 import loginBg from '../../assets/auth-img/login-bg.png';
 
 const Login: React.FC = () => {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const isFormValid = email.trim() !== '' && password.trim() !== '';
+  const isFormValid = email.trim() !== '' && password.trim() !== '' && !loading;
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await authService.login(email, password);
+      if (response.roles.includes('Admin')) {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err.response?.data?.message || "Invalid credentials or server unreachable.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-neutral relative overflow-hidden font-body">
@@ -44,7 +69,13 @@ const Login: React.FC = () => {
               </p>
             </div>
 
-            <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-5" onSubmit={handleLogin}>
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-3 animate-shake">
+                  <Activity className="w-4 h-4 text-red-500 shrink-0" />
+                  <p className="text-[11px] font-bold text-red-600 uppercase tracking-tight">{error}</p>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="label text-[11px] uppercase tracking-wider text-tertiary">
                   Institutional Email
@@ -85,9 +116,17 @@ const Login: React.FC = () => {
               <button 
                 type="submit" 
                 disabled={!isFormValid}
-                className="w-full btn-primary h-12 gap-2 text-sm uppercase tracking-widest font-bold bg-black hover:bg-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full btn-primary h-12 gap-2 text-sm uppercase tracking-widest font-bold bg-black hover:bg-primary transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                Authenticate Access <ArrowRight className="w-4 h-4" />
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Verifying...
+                  </>
+                ) : (
+                  <>
+                    Authenticate Access <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
 

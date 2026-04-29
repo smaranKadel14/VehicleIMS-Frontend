@@ -6,6 +6,8 @@ import VendorManagement from "../pages/admin/VendorManagement";
 import CustomerDirectory from "../pages/staff/CustomerDirectory";
 import ProfilePage from "../pages/customer/ProfilePage";
 import CustomerDashboard from "../pages/customer/Dashboard";
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import ProtectedRoute from "./ProtectedRoute";
 
 
 function AppRoutes() {
@@ -14,10 +16,51 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/vendors" element={<VendorManagement />} />
-      <Route path="/customers" element={<CustomerDirectory />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/dashboard" element={<CustomerDashboard />} />
+      
+      {/* Protected Customer Routes */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <CustomerDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Protected Admin/Staff Routes */}
+      <Route 
+        path="/vendors" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <VendorManagement />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/customers" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+            <CustomerDirectory />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin-dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } 
+      />
+
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Fallback for undefined routes */}
       <Route path="*" element={<Navigate to="/login" replace />} />
