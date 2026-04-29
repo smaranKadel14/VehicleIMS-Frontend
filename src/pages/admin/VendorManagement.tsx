@@ -1,5 +1,23 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { 
+  LayoutDashboard, 
+  Package, 
+  Wrench, 
+  Truck, 
+  Settings, 
+  LogOut, 
+  Search, 
+  Bell, 
+  Clock, 
+  Zap, 
+  TrendingUp,
+  AlertCircle,
+  Users,
+  ShieldCheck,
+  Star,
+  Activity,
+} from 'lucide-react';
 import authService from "../../services/authService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -58,12 +76,11 @@ function makeVendorId(): string {
 }
 
 const NAV_ITEMS = [
-  { icon: "⊞", label: "Dashboard" },
-  { icon: "📦", label: "Inventory" },
-  { icon: "🏭", label: "Vendors", active: true },
-  { icon: "🛒", label: "Orders" },
-  { icon: "🏠", label: "Warehouse" },
-  { icon: "⚙️", label: "Settings" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
+  { icon: Package, label: "Inventory", path: "/inventory" },
+  { icon: Users, label: "Vendors", active: true, path: "/vendors" },
+  { icon: Wrench, label: "Work Orders", path: "#" },
+  { icon: Truck, label: "Logistics", path: "#" },
 ];
 
 const EMPTY_FORM: VendorFormData = {
@@ -71,6 +88,43 @@ const EMPTY_FORM: VendorFormData = {
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${delay} ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+  >
+    <Icon className={`w-5 h-5 transition-transform duration-150 ease-out ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
+    <span className="text-sm tracking-tight">{label}</span>
+  </button>
+);
+
+const HeaderIcon = ({ icon: Icon, badge = false }: { icon: any, badge?: boolean }) => (
+  <button className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group">
+    <Icon className="w-5 h-5 group-active:scale-90 transition-transform" />
+    {badge && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>}
+  </button>
+);
+
+const AdminStatCard = ({ label, value, trend, icon: Icon, delay = "", variant = 'white' }: { label: string, value: string, trend: string, icon: any, delay?: string, variant?: 'white' | 'gray' | 'black' }) => (
+  <div className={`rounded-3xl p-6 transition-all duration-100 hover:duration-200 ease-out hover:shadow-xl hover:-translate-y-1 ${delay} flex flex-col justify-between min-h-[170px] cursor-default ${
+    variant === 'black' ? 'bg-black text-neutral' : 
+    variant === 'gray' ? 'bg-[#D4D4D4] text-primary' : 
+    'bg-white shadow-sm border border-secondary/10'
+  }`}>
+    <div className="flex justify-between items-start">
+      <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${variant === 'black' ? 'text-neutral/40' : 'text-tertiary'}`}>{label}</p>
+      <Icon className={`w-5 h-5 ${variant === 'black' ? 'text-neutral/40' : 'text-tertiary'}`} />
+    </div>
+    <div className="mt-4">
+      <p className="text-3xl font-heading font-extrabold tracking-tighter leading-none">{value}</p>
+    </div>
+    <div className={`mt-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase ${variant === 'black' ? 'text-neutral/30' : 'text-tertiary opacity-80'}`}>
+       {trend.toLowerCase().includes('critical') ? <Clock className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
+       {trend}
+    </div>
+  </div>
+);
 
 function StarRating({ rating }: { rating: number }) {
   return <span style={{ fontSize: 13, fontWeight: 700 }}>★ {rating.toFixed(1)}</span>;
@@ -204,7 +258,9 @@ function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: 32, width: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
-        <div style={{ width: 56, height: 56, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 24 }}>🗑️</div>
+        <div style={{ width: 56, height: 56, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#dc2626" }}>
+          <AlertCircle className="w-8 h-8" />
+        </div>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Remove Vendor?</h2>
         <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>
           Are you sure you want to remove <strong>{vendor.name}</strong>? This will terminate the supply chain partnership.
@@ -307,29 +363,52 @@ export default function VendorManagement() {
   const openDelete = (vendor: Vendor) => { setModal({ delete: vendor }); setMenuOpen(null); };
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif", background: "#f9fafb", color: "#111" }}>
-
-      {/* ── Sidebar ── */}
-      <aside style={{ width: 220, background: "#fff", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", padding: "24px 0", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
-        <div style={{ padding: "0 20px 24px" }}>
-          <div style={{ fontWeight: 800, fontSize: 16, letterSpacing: "-0.5px" }}>Precision Engine</div>
-          <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.05em", marginTop: 2 }}>WAREHOUSE ADMIN</div>
-        </div>
-        {NAV_ITEMS.map(({ icon, label, active }) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 20px", background: active ? "#f3f4f6" : "transparent", fontWeight: active ? 700 : 500, fontSize: 13, cursor: "pointer", color: active ? "#111" : "#6b7280" }}>
-            <span>{icon}</span> {label.toUpperCase()}
+    <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
+      {/* Sidebar */}
+      <aside className="w-[280px] h-screen bg-[#1A1A1A] text-neutral flex flex-col shrink-0 z-20 shadow-2xl overflow-hidden sticky top-0">
+        <div className="p-8 flex items-center gap-4">
+          <div className="w-12 h-12 bg-neutral rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-110 transition-transform cursor-pointer">
+            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center">
+               <Zap className="w-4 h-4 text-neutral fill-neutral" />
+            </div>
           </div>
-        ))}
-        <div style={{ marginTop: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
-          <button onClick={() => setModal("add")} style={{ width: "100%", padding: 12, background: "#111", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-            + ADD NEW VENDOR
-          </button>
+          <div>
+            <h1 className="font-heading font-extrabold text-xl leading-tight uppercase tracking-tighter">Enginecore</h1>
+            <p className="text-[10px] text-tertiary uppercase tracking-[0.3em] font-bold opacity-70">V-Series Portal</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 px-6 py-8 space-y-3">
+          {NAV_ITEMS.map((item, i) => (
+            <NavItem 
+              key={item.label} 
+              icon={item.icon} 
+              label={item.label} 
+              active={item.active} 
+              onClick={() => item.path !== "#" && navigate(item.path)} 
+            />
+          ))}
+        </nav>
+
+        <div className="px-6 py-8 border-t border-white/5 space-y-6">
           <button 
-            onClick={handleLogout}
-            style={{ width: "100%", padding: 12, background: "#fff", color: "#dc2626", border: "1px solid #e5e7eb", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+            onClick={() => setModal("add")}
+            className="w-full bg-neutral text-black py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 transition-all active:scale-95"
           >
-            SIGN OUT
+            New Part Request
           </button>
+          
+          <div className="space-y-2">
+            <button className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left">
+              <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" /> Settings
+            </button>
+            <button 
+              onClick={handleLogout}
+              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all text-sm font-bold group text-left"
+            >
+              <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Sign Out
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -337,18 +416,42 @@ export default function VendorManagement() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Topbar */}
-        <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 32px", height: 60, display: "flex", alignItems: "center", gap: 24, flexShrink: 0, position: "sticky", top: 0, zIndex: 10 }}>
-          <div style={{ flex: 1, position: "relative" }}>
-            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9ca3af" }}>🔍</span>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendors by name, email, ID..."
-              style={{ width: "100%", maxWidth: 340, paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box" }} />
+        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-secondary/20 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
+          <div className="flex-1 max-w-xl">
+            <div className="relative group">
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-tertiary group-focus-within:text-primary transition-colors" />
+              <input 
+                type="text" 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search serial numbers, parts, or invoices..." 
+                className="w-full bg-[#F5F5F3]/50 border-none rounded-2xl py-3.5 pl-14 pr-6 text-sm focus:ring-4 focus:ring-primary/5 transition-all placeholder:text-tertiary font-medium"
+              />
+            </div>
           </div>
-          {["Analytics", "Reports", "Logs"].map((t) => (
-            <span key={t} style={{ fontSize: 13, fontWeight: t === "Reports" ? 700 : 500, color: t === "Reports" ? "#111" : "#6b7280", cursor: "pointer", borderBottom: t === "Reports" ? "2px solid #111" : "none", paddingBottom: 2 }}>{t}</span>
-          ))}
-          <span style={{ fontSize: 18, cursor: "pointer" }}>🔔</span>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>
-            {user?.userName ? user.userName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'WA'}
+
+          <div className="flex items-center gap-10">
+            <nav className="flex items-center gap-10">
+              <button className="text-[10px] font-black uppercase tracking-[0.25em] text-tertiary hover:text-primary transition-colors">Analytics</button>
+              <button className="text-[10px] font-black uppercase tracking-[0.25em] text-primary border-b-2 border-primary pb-1">Reports</button>
+              <button className="text-[10px] font-black uppercase tracking-[0.25em] text-tertiary hover:text-primary transition-colors">Logs</button>
+            </nav>
+
+            <div className="flex items-center gap-6 pl-10 border-l border-secondary/20">
+              <div className="flex gap-2">
+                <HeaderIcon icon={Bell} badge />
+                <HeaderIcon icon={Settings} />
+              </div>
+              <div className="flex items-center gap-4 ml-2 group cursor-pointer">
+                <div className="text-right">
+                  <p className="font-black text-sm leading-none">{user?.userName || 'Admin'}</p>
+                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Administrator'}</p>
+                </div>
+                <div className="w-11 h-11 rounded-2xl overflow-hidden ring-4 ring-secondary/10 group-hover:ring-primary/10 transition-all shadow-lg">
+                  <img src={`https://ui-avatars.com/api/?name=${user?.userName || 'Admin'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
+                </div>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -366,18 +469,11 @@ export default function VendorManagement() {
           </div>
 
           {/* Stat Cards — live data */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 28 }}>
-            {[
-              { label: "TOTAL VENDORS",  value: String(vendors.length) },
-              { label: "ACTIVE VENDORS", value: String(activeCount) },
-              { label: "AVG RATING",     value: `${avgRating.toFixed(1)} ★` },
-              { label: "ON-TIME RATE",   value: "96.2%" },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "20px 24px" }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", letterSpacing: "0.08em", marginBottom: 10 }}>{label}</div>
-                <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.5px" }}>{value}</div>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <AdminStatCard label="Total Vendors" value={String(vendors.length)} trend="Global supply network" icon={Users} />
+            <AdminStatCard label="Active Vendors" value={String(activeCount)} trend={`${((activeCount/vendors.length)*100).toFixed(1)}% availability`} icon={ShieldCheck} />
+            <AdminStatCard label="Avg Rating" value={`${avgRating.toFixed(1)}`} trend="Performance benchmark" icon={Star} variant="gray" />
+            <AdminStatCard label="On-Time Rate" value="96.2%" trend="Logistics efficiency" icon={Activity} variant="black" />
           </div>
 
           {/* Filter Tabs */}

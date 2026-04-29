@@ -3,6 +3,7 @@ import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
 import VendorManagement from "../pages/admin/VendorManagement";
+import InventoryManagement from "../pages/admin/InventoryManagement";
 import CustomerDirectory from "../pages/staff/CustomerDirectory";
 import ProfilePage from "../pages/customer/ProfilePage";
 import CustomerDashboard from "../pages/customer/Dashboard";
@@ -41,6 +42,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['Admin']}>
             <VendorManagement />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/inventory" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <InventoryManagement />
           </ProtectedRoute>
         } 
       />
