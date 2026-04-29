@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import authService from "../../services/authService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -219,7 +221,14 @@ function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function VendorManagement() {
+  const navigate = useNavigate();
+  const user = authService.getCurrentUser();
   const [vendors, setVendors]       = useState<Vendor[]>(INITIAL_VENDORS);
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+  };
   const [filter, setFilter]         = useState<FilterTab>("All");
   const [search, setSearch]         = useState("");
   const [modal, setModal]           = useState<ModalState>(null);
@@ -311,9 +320,15 @@ export default function VendorManagement() {
             <span>{icon}</span> {label.toUpperCase()}
           </div>
         ))}
-        <div style={{ marginTop: "auto", padding: 20 }}>
+        <div style={{ marginTop: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
           <button onClick={() => setModal("add")} style={{ width: "100%", padding: 12, background: "#111", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
             + ADD NEW VENDOR
+          </button>
+          <button 
+            onClick={handleLogout}
+            style={{ width: "100%", padding: 12, background: "#fff", color: "#dc2626", border: "1px solid #e5e7eb", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+          >
+            SIGN OUT
           </button>
         </div>
       </aside>
@@ -332,7 +347,9 @@ export default function VendorManagement() {
             <span key={t} style={{ fontSize: 13, fontWeight: t === "Reports" ? 700 : 500, color: t === "Reports" ? "#111" : "#6b7280", cursor: "pointer", borderBottom: t === "Reports" ? "2px solid #111" : "none", paddingBottom: 2 }}>{t}</span>
           ))}
           <span style={{ fontSize: 18, cursor: "pointer" }}>🔔</span>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>WA</div>
+          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+            {user?.userName ? user.userName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'WA'}
+          </div>
         </header>
 
         <main style={{ flex: 1, overflowY: "auto", padding: 32, position: "relative" }}>

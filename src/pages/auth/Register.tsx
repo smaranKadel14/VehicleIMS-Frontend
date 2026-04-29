@@ -1,10 +1,12 @@
-import React from 'react';
-import { Mail, Phone, Lock, Eye, CheckCircle2, Globe, Zap, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Mail, Phone, Lock, Eye, CheckCircle2, Globe, Zap, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import authService from '../../services/authService';
 import gradient from '../../assets/auth-img/Gradient.png';
 
 const Register: React.FC = () => {
-  const [formData, setFormData] = React.useState({
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
     email: '',
@@ -12,6 +14,8 @@ const Register: React.FC = () => {
     password: '',
     agreed: false
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isFormValid = 
     formData.firstName.trim() !== '' && 
@@ -19,7 +23,8 @@ const Register: React.FC = () => {
     formData.email.trim() !== '' && 
     formData.phone.trim() !== '' && 
     formData.password.trim() !== '' && 
-    formData.agreed;
+    formData.agreed &&
+    !loading;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -27,6 +32,29 @@ const Register: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isFormValid) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      await authService.register({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phoneNumber: formData.phone,
+        password: formData.password
+      });
+      navigate('/login', { state: { message: "Registration successful. Please log in." } });
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      setError(err.response?.data?.message || "Registration failed. Please verify your details.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -101,7 +129,13 @@ const Register: React.FC = () => {
               <p className="text-tertiary text-sm">Enter your professional credentials to begin.</p>
             </div>
 
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-6" onSubmit={handleRegister}>
+              {error && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-shake">
+                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs font-bold text-red-600 uppercase tracking-tight">{error}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] uppercase tracking-widest text-tertiary font-bold">First Name</label>
@@ -196,9 +230,15 @@ const Register: React.FC = () => {
               <button 
                 type="submit" 
                 disabled={!isFormValid}
-                className="w-full btn-primary h-14 uppercase tracking-[0.2em] font-bold text-sm bg-primary hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-full btn-primary h-14 uppercase tracking-[0.2em] font-bold text-sm bg-primary hover:bg-black transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
-                Initialize Registration
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Initializing...
+                  </>
+                ) : (
+                  "Initialize Registration"
+                )}
               </button>
             </form>
           </div>
