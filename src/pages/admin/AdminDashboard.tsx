@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FC } from 'react';
 import { 
@@ -15,23 +14,23 @@ import {
   CreditCard, 
   Zap, 
   ShoppingBag, 
-  Activity, 
   TrendingUp,
   AlertCircle,
   Plus,
   Download,
-  MoreVertical,
   ChevronRight,
   FileText,
   UserPlus,
-  Shield,
-  Info
+  Users
 } from 'lucide-react';
 import authService from '../../services/authService';
 
 // Helper Components
-const NavItem = ({ icon: Icon, label, active = false, delay = "" }: { icon: any, label: string, active?: boolean, delay?: string }) => (
-  <button className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group animate-slide-up ${delay} ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}>
+const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${delay} ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+  >
     <Icon className={`w-5 h-5 transition-transform duration-150 ease-out ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
     <span className="text-sm tracking-tight">{label}</span>
   </button>
@@ -45,7 +44,7 @@ const HeaderIcon = ({ icon: Icon, badge = false }: { icon: any, badge?: boolean 
 );
 
 const AdminStatCard = ({ label, value, decimal, trend, icon: Icon, delay = "", variant = 'white' }: { label: string, value: string, decimal?: string, trend: string, icon: any, delay?: string, variant?: 'white' | 'gray' | 'black' }) => (
-  <div className={`rounded-3xl p-8 transition-all duration-100 hover:duration-200 ease-out hover:shadow-xl hover:-translate-y-1 animate-slide-up ${delay} flex flex-col justify-between min-h-[220px] cursor-default ${
+  <div className={`rounded-3xl p-6 transition-all duration-100 hover:duration-200 ease-out hover:shadow-xl hover:-translate-y-1 ${delay} flex flex-col justify-between min-h-[190px] cursor-default ${
     variant === 'black' ? 'bg-black text-neutral' : 
     variant === 'gray' ? 'bg-[#D4D4D4] text-primary' : 
     'bg-white shadow-sm border border-secondary/10'
@@ -115,7 +114,7 @@ const AdminDashboard: FC = () => {
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-[280px] h-screen bg-[#1A1A1A] text-neutral flex flex-col shrink-0 z-20 shadow-2xl animate-fade-in overflow-hidden sticky top-0">
+      <aside className="w-[280px] h-screen bg-[#1A1A1A] text-neutral flex flex-col shrink-0 z-20 shadow-2xl overflow-hidden sticky top-0">
         <div className="p-8 flex items-center gap-4">
           <div className="w-12 h-12 bg-neutral rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-110 transition-transform cursor-pointer">
             <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center">
@@ -129,11 +128,11 @@ const AdminDashboard: FC = () => {
         </div>
 
         <nav className="flex-1 px-6 py-8 space-y-3">
-          <NavItem icon={LayoutDashboard} label="Dashboard" active delay="delay-[100ms]" />
-          <NavItem icon={Package} label="Inventory" delay="delay-[200ms]" />
-          <NavItem icon={Wrench} label="Work Orders" delay="delay-[300ms]" />
-          <NavItem icon={Truck} label="Logistics" delay="delay-[400ms]" />
-          <NavItem icon={BarChart3} label="Analytics" delay="delay-[500ms]" />
+          <NavItem icon={LayoutDashboard} label="Dashboard" active onClick={() => navigate('/admin-dashboard')} />
+          <NavItem icon={Package} label="Inventory" onClick={() => navigate('/inventory')} />
+          <NavItem icon={Users} label="Vendors" onClick={() => navigate('/vendors')} />
+          <NavItem icon={Wrench} label="Work Orders" />
+          <NavItem icon={Truck} label="Logistics" />
         </nav>
 
         <div className="px-6 py-8 border-t border-white/5 space-y-6">
@@ -217,28 +216,18 @@ const AdminDashboard: FC = () => {
             </div>
 
             {/* Stats Row */}
-            <div className="flex flex-row gap-6 pb-4 overflow-x-auto no-scrollbar">
-              <div className="min-w-[240px] flex-1">
-                <AdminStatCard label="Total Sales" value="1,284" trend="+12.5% vs last month" icon={ShoppingBag} delay="delay-[100ms]" />
-              </div>
-              <div className="min-w-[240px] flex-1">
-                <AdminStatCard label="Monthly Revenue" value="$42,902" decimal=".00" trend="+8.2% vs last month" icon={CreditCard} delay="delay-[200ms]" />
-              </div>
-              <div className="min-w-[240px] flex-1">
-                <AdminStatCard label="Yearly Revenue" value="$512.4k" trend="+15% annual projection" icon={BarChart3} delay="delay-[300ms]" />
-              </div>
-              <div className="min-w-[240px] flex-1">
-                <AdminStatCard label="Purchase Cost" value="$12,450.00" trend="Processing 4 pending invoices" icon={FileText} delay="delay-[400ms]" variant="gray" />
-              </div>
-              <div className="min-w-[240px] flex-1">
-                <AdminStatCard label="Stock Alerts" value="18 Items" trend="Critical levels: Brake Pads, V8 Seals" icon={AlertCircle} delay="delay-[500ms]" variant="black" />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 pb-4">
+              <AdminStatCard label="Total Sales" value="1,284" trend="+12.5% vs last month" icon={ShoppingBag} />
+              <AdminStatCard label="Monthly Revenue" value="$42,902" decimal=".00" trend="+8.2% vs last month" icon={CreditCard} />
+              <AdminStatCard label="Yearly Revenue" value="$512.4k" trend="+15% annual projection" icon={BarChart3} />
+              <AdminStatCard label="Purchase Cost" value="$12,450.00" trend="Processing 4 pending invoices" icon={FileText} variant="gray" />
+              <AdminStatCard label="Stock Alerts" value="18 Items" trend="Critical levels: Brake Pads, V8 Seals" icon={AlertCircle} variant="black" />
             </div>
 
             {/* Middle Row */}
             <div className="grid grid-cols-12 gap-8">
               {/* Revenue vs Expense Chart Area */}
-              <div className="col-span-12 lg:col-span-8 bg-white rounded-5xl border border-secondary/20 p-10 shadow-sm animate-slide-up delay-[600ms] relative overflow-hidden group">
+              <div className="col-span-12 lg:col-span-8 bg-white rounded-5xl border border-secondary/20 p-10 shadow-sm relative overflow-hidden group">
                 <div className="flex justify-between items-center mb-12">
                   <div>
                     <h3 className="text-2xl font-extrabold tracking-tight">Revenue vs Expense</h3>
@@ -277,7 +266,7 @@ const AdminDashboard: FC = () => {
               </div>
 
               {/* Quick Actions Panel */}
-              <div className="col-span-12 lg:col-span-4 space-y-8 animate-slide-up delay-[700ms]">
+              <div className="col-span-12 lg:col-span-4 space-y-8">
                 <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary px-2">Quick Actions</h4>
                 <div className="space-y-4">
                   <QuickActionItem icon={Plus} title="Add New Part" subtitle="UPDATE INVENTORY" />
