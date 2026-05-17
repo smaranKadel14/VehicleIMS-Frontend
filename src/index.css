@@ -7,11 +7,15 @@
 @layer base {
   :root {
     /* Theme Colors (RGB format for opacity support) */
-    --primary: 43 43 43;      /* #2B2B2B */
-    --secondary: 212 212 212; /* #D4D4D4 */
-    --tertiary: 179 179 179;  /* #B3B3B3 */
-    --neutral: 255 255 255;   /* #FFFFFF */
-    
+    --primary: 43 43 43;
+    /* #2B2B2B */
+    --secondary: 212 212 212;
+    /* #D4D4D4 */
+    --tertiary: 179 179 179;
+    /* #B3B3B3 */
+    --neutral: 255 255 255;
+    /* #FFFFFF */
+
     /* Functional Colors */
     --primary-foreground: 255 255 255;
     --secondary-foreground: 43 43 43;
@@ -21,12 +25,18 @@
     @apply font-body bg-neutral text-primary antialiased;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-heading font-bold tracking-tight;
   }
 }
 
 @layer components {
+
   /* Reusable Button System */
   .btn {
     @apply inline-flex items-center justify-center px-6 py-2.5 rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-primary/20;

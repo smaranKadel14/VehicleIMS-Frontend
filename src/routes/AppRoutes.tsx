@@ -5,6 +5,11 @@ import ForgotPassword from "../pages/auth/ForgotPassword";
 import VendorManagement from "../pages/VendorManagement";
 import CustomerDirectory from "../pages/CustomerDirectory";
 import CustomerHistory from "../pages/CustomerHistory";
+import InventoryManagement from "../pages/admin/InventoryManagement";
+import ProfilePage from "../pages/customer/ProfilePage";
+import CustomerDashboard from "../pages/customer/Dashboard";
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import ProtectedRoute from "./ProtectedRoute";
 
 function AppRoutes() {
   return (
@@ -12,9 +17,59 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/vendors" element={<VendorManagement />} />
-      <Route path="/customers" element={<CustomerDirectory />} />
-      <Route path="/customer-history" element={<CustomerHistory />} />
+      
+      {/* Protected Customer Routes */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <CustomerDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } 
+      />
+
+      {/* Protected Admin/Staff Routes */}
+      <Route 
+        path="/vendors" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <VendorManagement />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/inventory" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <InventoryManagement />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/customers" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+            <CustomerDirectory />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin-dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } 
+      />
+
       <Route path="/" element={<Navigate to="/login" replace />} />
       {/* Fallback for undefined routes */}
       <Route path="*" element={<Navigate to="/login" replace />} />

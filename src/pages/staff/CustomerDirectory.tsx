@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import authService from "../../services/authService";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -253,7 +255,14 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CustomerSearch() {
+  const navigate = useNavigate();
+  const user = authService.getCurrentUser();
   const [customers, setCustomers]         = useState<Customer[]>(INITIAL_CUSTOMERS);
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/login');
+  };
   const [search, setSearch]               = useState("");
   const [searchType, setSearchType]       = useState<SearchType>("All");
   const [statusFilter, setStatusFilter]   = useState<StatusFilter>("All Active");
@@ -406,6 +415,7 @@ export default function CustomerSearch() {
             style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", color: "#9ca3af", fontSize: 13.5, cursor: "pointer" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#fff"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
+            onClick={handleLogout}
           >
             <span style={{ fontSize: 15 }}>↪</span> Sign Out
           </div>
@@ -438,10 +448,12 @@ export default function CustomerSearch() {
           {/* Staff identity */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 4 }}>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", lineHeight: 1.2 }}>Marcus Thorne</div>
-              <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.05em" }}>SERVICE LEAD</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", lineHeight: 1.2 }}>{user?.userName || 'Staff'}</div>
+              <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.05em" }}>{user?.roles?.[0] || 'SERVICE LEAD'}</div>
             </div>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#374151", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>MT</div>
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#374151", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+              {user?.userName ? user.userName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'ST'}
+            </div>
           </div>
         </header>
 
