@@ -2,14 +2,14 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
-import VendorManagement from "../pages/admin/VendorManagement";
+import VendorManagement from "../pages/VendorManagement";
+import CustomerDirectory from "../pages/CustomerDirectory";
+import CustomerHistory from "../pages/CustomerHistory";
 import InventoryManagement from "../pages/admin/InventoryManagement";
-import CustomerDirectory from "../pages/staff/CustomerDirectory";
 import ProfilePage from "../pages/customer/ProfilePage";
 import CustomerDashboard from "../pages/customer/Dashboard";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import ProtectedRoute from "./ProtectedRoute";
-
 
 function AppRoutes() {
   return (
