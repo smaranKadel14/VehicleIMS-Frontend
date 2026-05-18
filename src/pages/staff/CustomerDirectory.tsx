@@ -193,7 +193,7 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
         {/* Stats Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
           {[
-            { label: "TOTAL REVENUE", value: `$${customer.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+            { label: "TOTAL REVENUE", value: `RS ${customer.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
             { label: "VEHICLES",      value: String(customer.vehicles) },
             { label: "LAST VISIT",    value: customer.lastVisit },
             { label: "CUSTOMER ID",   value: `#CUS-${String(customer.id).padStart(4, "0")}` },
@@ -246,7 +246,6 @@ export default function CustomerSearch() {
     if (isStaff) {
       return [
         { icon: "⊞", label: "Dashboard", path: "/staff-dashboard" },
-        { icon: "📦", label: "Inventory", path: "/inventory" },
         { icon: "🔧", label: "Work Orders", path: "#" },
         { icon: "🚚", label: "Logistics", path: "#" },
         { icon: "👥", label: "Customers", active: true, path: "/customers" },
@@ -560,7 +559,7 @@ export default function CustomerSearch() {
                         </span>
                       </td>
                       <td style={{ padding: "18px 20px" }}>
-                        <div style={{ fontWeight: 800, fontSize: 16 }}>${c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                        <div style={{ fontWeight: 800, fontSize: 16 }}>RS {c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
                         <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginTop: 2, letterSpacing: "0.04em" }}>LIFETIME VALUE</div>
                       </td>
                       <td style={{ padding: "18px 20px", fontSize: 14, color: "#374151" }}>{c.lastVisit}</td>

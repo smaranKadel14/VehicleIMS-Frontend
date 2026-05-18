@@ -16,7 +16,8 @@ import {
   Users,
   ShieldCheck,
   Star,
-  Activity
+  Activity,
+  FileText
 } from 'lucide-react';
 import authService from "../../services/authService";
 // Data types and interface definitions
@@ -76,6 +77,7 @@ const NAV_ITEMS = [
   { icon: Package, label: "Inventory", path: "/inventory" },
   { icon: Users, label: "Vendors", active: true, path: "/vendors" },
   { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
+  { icon: FileText, label: "Purchases", path: "/purchases" },
   { icon: Wrench, label: "Work Orders", path: "#" },
   { icon: Truck, label: "Logistics", path: "#" },
 ];

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -18,7 +18,8 @@ import {
   Nut,
   Wind,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 import authService from "../../services/authService";
 // Data types and interface definitions
@@ -208,7 +209,7 @@ function AddEditModal({
           </div>
           {/* Price */}
           <div>
-            <label style={labelStyle}>Unit Price ($) *</label>
+            <label style={labelStyle}>Unit Price (RS) *</label>
             <input type="number" min={0} step="0.01" value={form.price} onChange={set("price")} style={{ ...inputStyle, borderColor: errors.price ? "#dc2626" : "#e5e7eb" }} placeholder="0.00" />
             {errors.price && <p style={errStyle}>{errors.price}</p>}
           </div>
@@ -253,34 +254,31 @@ function DeleteModal({ part, onClose, onConfirm }: { part: Part; onClose: () => 
 export default function PartsManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
-  const [parts, setParts]           = useState<Part[]>(INITIAL_PARTS);
+  const [parts, setParts]           = useState<Part[]>(() => {
+    const saved = localStorage.getItem('parts');
+    return saved ? JSON.parse(saved) : INITIAL_PARTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('parts', JSON.stringify(parts));
+  }, [parts]);
   const [search, setSearch]         = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Components");
   const [stockFilter, setStockFilter]       = useState("All Stock");
   const [modal, setModal]           = useState<ModalState>(null);
   const [menuOpen, setMenuOpen]     = useState<number | null>(null);
 
-  const isStaff = user?.roles?.includes('Staff');
-
   const filteredNavItems = useMemo(() => {
-    if (isStaff) {
-      return [
-        { icon: LayoutDashboard, label: "Dashboard", path: "/staff-dashboard" },
-        { icon: Package, label: "Inventory", active: true, path: "/inventory" },
-        { icon: Users, label: "Customers", path: "/customers" },
-        { icon: Wrench, label: "Work Orders", path: "#" },
-        { icon: Truck, label: "Logistics", path: "#" },
-      ];
-    }
     return [
       { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
       { icon: Package, label: "Inventory", active: true, path: "/inventory" },
       { icon: Users, label: "Vendors", path: "/vendors" },
       { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
+      { icon: FileText, label: "Purchases", path: "/purchases" },
       { icon: Wrench, label: "Work Orders", path: "#" },
       { icon: Truck, label: "Logistics", path: "#" },
     ];
-  }, [isStaff]);
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -488,7 +486,7 @@ export default function PartsManagement() {
             <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: "20px 24px" }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", letterSpacing: "0.08em", marginBottom: 8 }}>INVENTORY VALUE</div>
               <div style={{ fontSize: 30, fontWeight: 800, letterSpacing: "-1px", marginBottom: 8 }}>
-                ${inventoryVal >= 1_000_000 ? (inventoryVal / 1_000_000).toFixed(1) + "M" : inventoryVal.toLocaleString()}
+                RS {inventoryVal >= 1_000_000 ? (inventoryVal / 1_000_000).toFixed(1) + "M" : inventoryVal.toLocaleString()}
               </div>
               <div style={{ fontSize: 11, fontWeight: 600, color: "#6b7280" }}>ASSET VALUATION</div>
             </div>
@@ -539,7 +537,7 @@ export default function PartsManagement() {
                         <td style={{ padding: "16px 20px", fontSize: 13, color: "#6b7280", fontFamily: "monospace", whiteSpace: "nowrap" }}>{part.sku}</td>
                         <td style={{ padding: "16px 20px", fontSize: 12, color: "#6b7280", fontWeight: 600 }}>{part.category}</td>
                         <td style={{ padding: "16px 20px" }}><StockBadge stock={part.stock} /></td>
-                        <td style={{ padding: "16px 20px", fontWeight: 700, fontSize: 14, whiteSpace: "nowrap" }}>${part.price.toFixed(2)}</td>
+                        <td style={{ padding: "16px 20px", fontWeight: 700, fontSize: 14, whiteSpace: "nowrap" }}>RS {part.price.toFixed(2)}</td>
                         <td style={{ padding: "16px 20px", fontSize: 13, color: "#374151" }}>{part.supplier}</td>
                         <td style={{ padding: "16px 20px", position: "relative" }}>
                           <button
