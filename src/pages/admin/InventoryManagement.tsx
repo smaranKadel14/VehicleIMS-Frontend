@@ -1,27 +1,15 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Package, 
-  Wrench, 
-  Truck, 
-  Settings, 
-  LogOut, 
-  Search, 
-  Bell, 
-  Zap, 
-  AlertCircle,
-  Boxes,
-  Cpu,
-  CircleDot,
-  Battery,
-  Nut,
-  Wind,
-  Users,
-  ShieldCheck,
-  FileText
-} from 'lucide-react';
+import partService from "../../services/partService";
+import vendorService from "../../services/vendorService";
+import type { VendorResponse } from "../../services/vendorService";
 import authService from "../../services/authService";
+import { 
+  Cpu, CircleDot, Battery, Settings, Wrench, Wind, AlertCircle, 
+  LayoutDashboard, Package, Users, ShieldCheck, FileText, Truck, Zap, 
+  LogOut, Search, Bell, Boxes 
+} from "lucide-react";
+
 // Data types and interface definitions
 type StockStatus = "LOW" | "CRITICAL" | "OK";
 
@@ -34,7 +22,7 @@ interface Part {
   status: StockStatus;
   price: number;
   supplier: string;
-  icon: string;
+  icon: any;
 }
 
 interface PartFormData {
@@ -47,22 +35,13 @@ interface PartFormData {
 }
 
 type ModalState = null | "add" | { edit: Part } | { delete: Part };
+
 // Helper functions for common logic
 function deriveStatus(stock: number): StockStatus {
   if (stock <= 3) return "CRITICAL";
   if (stock <= 10) return "LOW";
   return "OK";
 }
-
-let nextId = 100;
-// Initial data and configuration constants
-const INITIAL_PARTS: Part[] = [
-  { id: 1, name: "High-Performance Fuel Injector",  sku: "#FI-88291-LX",  category: "ENGINE COMPONENTS", stock: 8,   status: "LOW",      price: 284.5,  supplier: "Bosch Automotive GmbH",  icon: "⚙️" },
-  { id: 2, name: "Ceramic Brake Pads (Front)",       sku: "#BP-00221-CF",  category: "BRAKING SYSTEM",    stock: 142, status: "OK",       price: 112.0,  supplier: "Brembo S.p.A",           icon: "🔘" },
-  { id: 3, name: "Li-Ion Battery Cell Module",       sku: "#BT-998-22X",   category: "ELECTRICAL",        stock: 34,  status: "OK",       price: 1240.0, supplier: "Panasonic Energy Ltd",    icon: "🔋" },
-  { id: 4, name: "Turbocharger Wastegate Actuator",  sku: "#TC-44512-WA",  category: "TRANSMISSION",      stock: 3,   status: "CRITICAL",  price: 455.0,  supplier: "Garrett Motion Inc",      icon: "🔩" },
-  { id: 5, name: "Variable Valve Timing Solenoid",   sku: "#VV-11002-LX",  category: "ENGINE COMPONENTS", stock: 56,  status: "OK",       price: 88.25,  supplier: "Denso Corporation",       icon: "⚙️" },
-];
 
 const CATEGORY_OPTIONS = [
   "ENGINE COMPONENTS",
@@ -83,10 +62,21 @@ const ICON_MAP: Record<string, any> = {
   "ENGINE COMPONENTS": Cpu,
   "BRAKING SYSTEM":    CircleDot,
   "ELECTRICAL":        Battery,
-  "TRANSMISSION":      Nut,
+  "TRANSMISSION":      Settings,
   "SUSPENSION":        Wrench,
   "EXHAUST":           Wind,
 };
+
+function getCategoryFromSku(sku: string): string {
+  const s = sku.toUpperCase();
+  if (s.includes("FI") || s.includes("ENG")) return "ENGINE COMPONENTS";
+  if (s.includes("BR") || s.includes("BRK")) return "BRAKING SYSTEM";
+  if (s.includes("EL") || s.includes("ELE")) return "ELECTRICAL";
+  if (s.includes("TR") || s.includes("TRA")) return "TRANSMISSION";
+  if (s.includes("SU") || s.includes("SUS")) return "SUSPENSION";
+  if (s.includes("EX") || s.includes("EXH")) return "EXHAUST";
+  return "ENGINE COMPONENTS";
+}
 
 
 // Reusable UI components used within this page
@@ -131,18 +121,30 @@ const EMPTY_FORM: PartFormData = { name: "", sku: "", category: "ENGINE COMPONEN
 
 function AddEditModal({
   part,
+  vendors,
   onClose,
   onSave,
 }: {
   part: Part | null;
+  vendors: VendorResponse[];
   onClose: () => void;
   onSave: (data: PartFormData) => void;
 }) {
-  const [form, setForm] = useState<PartFormData>(
-    part
-      ? { name: part.name, sku: part.sku, category: part.category, stock: String(part.stock), price: String(part.price), supplier: part.supplier }
-      : { ...EMPTY_FORM }
-  );
+  const [form, setForm] = useState<PartFormData>(() => {
+    if (part) {
+      // Find matching vendor ID from vendor list
+      const matchedVendor = vendors.find(v => v.name === part.supplier);
+      return {
+        name: part.name,
+        sku: part.sku,
+        category: part.category,
+        stock: String(part.stock),
+        price: String(part.price),
+        supplier: matchedVendor ? String(matchedVendor.id) : "",
+      };
+    }
+    return { ...EMPTY_FORM };
+  });
   const [errors, setErrors] = useState<Partial<PartFormData>>({});
 
   const set = (key: keyof PartFormData) =>
@@ -155,7 +157,7 @@ function AddEditModal({
     if (!form.sku.trim())                                     e.sku      = "SKU is required";
     if (!form.stock || isNaN(+form.stock) || +form.stock < 0) e.stock   = "Valid stock quantity required";
     if (!form.price || isNaN(+form.price) || +form.price <= 0) e.price  = "Valid price required";
-    if (!form.supplier.trim())                                e.supplier = "Supplier is required";
+    if (!form.supplier.trim())                                e.supplier = "Supplier vendor is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -213,10 +215,19 @@ function AddEditModal({
             <input type="number" min={0} step="0.01" value={form.price} onChange={set("price")} style={{ ...inputStyle, borderColor: errors.price ? "#dc2626" : "#e5e7eb" }} placeholder="0.00" />
             {errors.price && <p style={errStyle}>{errors.price}</p>}
           </div>
-          {/* Supplier */}
+          {/* Supplier Select */}
           <div style={{ gridColumn: "1 / -1" }}>
-            <label style={labelStyle}>Supplier *</label>
-            <input value={form.supplier} onChange={set("supplier")} style={{ ...inputStyle, borderColor: errors.supplier ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. Bosch Automotive GmbH" />
+            <label style={labelStyle}>Supplier Vendor *</label>
+            <select 
+              value={form.supplier} 
+              onChange={set("supplier")} 
+              style={{ ...inputStyle, borderColor: errors.supplier ? "#dc2626" : "#e5e7eb", background: "#fff" }}
+            >
+              <option value="">Select a Vendor</option>
+              {vendors.map((v) => (
+                <option key={v.id} value={String(v.id)}>{v.name}</option>
+              ))}
+            </select>
             {errors.supplier && <p style={errStyle}>{errors.supplier}</p>}
           </div>
         </div>
@@ -254,14 +265,34 @@ function DeleteModal({ part, onClose, onConfirm }: { part: Part; onClose: () => 
 export default function PartsManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
-  const [parts, setParts]           = useState<Part[]>(() => {
-    const saved = localStorage.getItem('parts');
-    return saved ? JSON.parse(saved) : INITIAL_PARTS;
-  });
+  const [parts, setParts]           = useState<Part[]>([]);
+  const [vendors, setVendors]       = useState<VendorResponse[]>([]);
+
+  const fetchInventory = async () => {
+    try {
+      const partsData = await partService.getAll();
+      const mapped: Part[] = partsData.map(p => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        category: getCategoryFromSku(p.sku),
+        stock: p.stockQuantity,
+        status: deriveStatus(p.stockQuantity),
+        price: p.price,
+        supplier: p.vendorName || "Default Vendor",
+        icon: ICON_MAP[getCategoryFromSku(p.sku)] ?? Cpu
+      }));
+      setParts(mapped);
+    } catch (err) {
+      console.error("Failed to load parts inventory:", err);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('parts', JSON.stringify(parts));
-  }, [parts]);
+    fetchInventory();
+    vendorService.getAll().then(data => setVendors(data)).catch(err => console.error(err));
+  }, []);
+
   const [search, setSearch]         = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All Components");
   const [stockFilter, setStockFilter]       = useState("All Stock");
@@ -309,52 +340,57 @@ export default function PartsManagement() {
   const lowAlerts    = useMemo(() => parts.filter((p) => deriveStatus(p.stock) !== "OK").length, [parts]);
   const inventoryVal = useMemo(() => parts.reduce((s, p) => s + p.stock * p.price, 0), [parts]);
 // Handlers for creating, reading, updating, and deleting entries
-  const handleAdd = (data: PartFormData) => {
-    const newPart: Part = {
-      id:       ++nextId,
-      name:     data.name.trim(),
-      sku:      data.sku.trim().startsWith("#") ? data.sku.trim() : `#${data.sku.trim()}`,
-      category: data.category,
-      stock:    Number(data.stock),
-      status:   deriveStatus(Number(data.stock)),
-      price:    Number(data.price),
-      supplier: data.supplier.trim(),
-      icon:     ICON_MAP[data.category] ?? "⚙️",
-    };
-    setParts((prev) => [newPart, ...prev]);
-    setModal(null);
+  const handleAdd = async (data: PartFormData) => {
+    try {
+      await partService.create({
+        name: data.name.trim(),
+        description: "",
+        price: Number(data.price),
+        stockQuantity: Number(data.stock),
+        sku: data.sku.trim().startsWith("#") ? data.sku.trim() : `#${data.sku.trim()}`,
+        vendorId: Number(data.supplier)
+      });
+      await fetchInventory();
+      setModal(null);
+    } catch (err) {
+      console.error("Error adding part:", err);
+    }
   };
 
-  const handleEdit = (data: PartFormData) => {
+  const handleEdit = async (data: PartFormData) => {
     if (modal === null || modal === "add" || !("edit" in modal)) return;
     const id = modal.edit.id;
-    setParts((prev) =>
-      prev.map((p) =>
-        p.id !== id ? p : {
-          ...p,
-          name:     data.name.trim(),
-          sku:      data.sku.trim().startsWith("#") ? data.sku.trim() : `#${data.sku.trim()}`,
-          category: data.category,
-          stock:    Number(data.stock),
-          status:   deriveStatus(Number(data.stock)),
-          price:    Number(data.price),
-          supplier: data.supplier.trim(),
-          icon:     ICON_MAP[data.category] ?? p.icon,
-        }
-      )
-    );
-    setModal(null);
+    try {
+      await partService.update(id, {
+        name: data.name.trim(),
+        description: "",
+        price: Number(data.price),
+        stockQuantity: Number(data.stock),
+        sku: data.sku.trim().startsWith("#") ? data.sku.trim() : `#${data.sku.trim()}`,
+        vendorId: Number(data.supplier)
+      });
+      await fetchInventory();
+      setModal(null);
+    } catch (err) {
+      console.error("Error updating part:", err);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (modal === null || modal === "add" || !("delete" in modal)) return;
     const id = modal.delete.id;
-    setParts((prev) => prev.filter((p) => p.id !== id));
-    setModal(null);
+    try {
+      await partService.delete(id);
+      await fetchInventory();
+      setModal(null);
+    } catch (err) {
+      console.error("Error deleting part:", err);
+    }
   };
 
   const openEdit   = (part: Part) => { setModal({ edit: part });   setMenuOpen(null); };
   const openDelete = (part: Part) => { setModal({ delete: part }); setMenuOpen(null); };
+
 
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
@@ -609,10 +645,10 @@ export default function PartsManagement() {
 
       {/* ── Modals ── */}
       {modal === "add" && (
-        <AddEditModal part={null} onClose={() => setModal(null)} onSave={handleAdd} />
+        <AddEditModal part={null} vendors={vendors} onClose={() => setModal(null)} onSave={handleAdd} />
       )}
       {modal !== null && modal !== "add" && "edit" in modal && (
-        <AddEditModal part={modal.edit} onClose={() => setModal(null)} onSave={handleEdit} />
+        <AddEditModal part={modal.edit} vendors={vendors} onClose={() => setModal(null)} onSave={handleEdit} />
       )}
       {modal !== null && modal !== "add" && "delete" in modal && (
         <DeleteModal part={modal.delete} onClose={() => setModal(null)} onConfirm={handleDelete} />

@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import staffService from '../../services/staffService';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -41,13 +42,6 @@ interface StaffFormData {
 }
 
 type ModalState = null | "add" | { edit: StaffMember } | { delete: StaffMember };
-// Initial data and configuration constants
-const INITIAL_STAFF: StaffMember[] = [
-  { id: 1, name: "Alexander Vance", email: "a.vance@enginecore.industrial", status: "Active", initials: "AV" },
-  { id: 2, name: "Sarah Jenkins", email: "s.jenkins@enginecore.industrial", status: "Active", initials: "SJ" },
-  { id: 3, name: "Marcus Thorne", email: "m.thorne@enginecore.industrial", status: "Active", initials: "MT" },
-  { id: 4, name: "Elena Rossi", email: "e.rossi@enginecore.industrial", status: "Inactive", initials: "ER" },
-];
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
@@ -210,9 +204,32 @@ function StaffModal({
 export default function StaffManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
-  const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
+  const [staffList, setStaffList] = useState<StaffMember[]>([]);
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
+
+  const fetchStaff = async () => {
+    try {
+      const data = await staffService.getAll();
+      const mapped: StaffMember[] = data.map(s => {
+        const initials = `${s.firstName?.[0] || ""}${s.lastName?.[0] || ""}`.toUpperCase() || "ST";
+        return {
+          id: s.id,
+          name: s.fullName || `${s.firstName} ${s.lastName}`,
+          email: s.email,
+          status: s.isActive ? "Active" : "Inactive",
+          initials
+        };
+      });
+      setStaffList(mapped);
+    } catch (err) {
+      console.error("Failed to load staff list:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -226,36 +243,55 @@ export default function StaffManagement() {
     );
   }, [staffList, search]);
 
-  const activeCount = staffList.filter(s => s.status === "Active").length;
+  const activeCount = useMemo(() => {
+    if (!staffList.length) return 0;
+    return staffList.filter(s => s.status === "Active").length;
+  }, [staffList]);
 
-  const handleSave = (data: StaffFormData) => {
-    if (modal !== null && typeof modal === 'object' && 'edit' in modal) {
-      // Edit
-      setStaffList(prev => prev.map(s => s.id === modal.edit.id ? {
-        ...s,
-        name: data.name,
-        email: data.email,
-        status: data.isActive ? "Active" : "Inactive",
-        initials: data.name.split(' ').map(n => n[0]).join('').toUpperCase()
-      } : s));
-    } else {
-      // Add
-      const newStaff: StaffMember = {
-        id: Date.now(),
-        name: data.name,
-        email: data.email,
-        status: data.isActive ? "Active" : "Inactive",
-        initials: data.name.split(' ').map(n => n[0]).join('').toUpperCase()
-      };
-      setStaffList(prev => [newStaff, ...prev]);
+  const handleSave = async (data: StaffFormData) => {
+    try {
+      if (modal !== null && typeof modal === 'object' && 'edit' in modal) {
+        // Edit
+        setStaffList(prev => prev.map(s => s.id === modal.edit.id ? {
+          ...s,
+          name: data.name,
+          email: data.email,
+          status: data.isActive ? "Active" : "Inactive",
+          initials: data.name.split(' ').map(n => n[0]).join('').toUpperCase()
+        } : s));
+      } else {
+        // Add
+        const nameParts = data.name.trim().split(/\s+/);
+        const firstName = nameParts[0] || "Staff";
+        const lastName = nameParts.slice(1).join(" ") || "Member";
+        await staffService.register({
+          username: data.email.split("@")[0] || `staff${Math.floor(Math.random() * 1000)}`,
+          email: data.email.trim(),
+          password: "Password@123", // secure default initial password
+          firstName,
+          lastName,
+          phone: "9876543210",
+          department: "Operations",
+          position: "Staff",
+          role: "Staff"
+        });
+        await fetchStaff();
+      }
+      setModal(null);
+    } catch (err) {
+      console.error("Failed to register staff:", err);
     }
-    setModal(null);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (modal !== null && typeof modal === 'object' && 'delete' in modal) {
-      setStaffList(prev => prev.filter(s => s.id !== modal.delete.id));
-      setModal(null);
+      try {
+        await staffService.deactivate(modal.delete.id);
+        await fetchStaff();
+        setModal(null);
+      } catch (err) {
+        console.error("Failed to deactivate staff:", err);
+      }
     }
   };
 

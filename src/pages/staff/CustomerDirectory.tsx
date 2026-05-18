@@ -1,6 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../services/authService";
+import customerService from "../../services/customerService";
+import type { CustomerHistoryResponse } from "../../services/customerService";
+
 // Data types and interface definitions
 type CustomerStatus = "Active" | "Inactive";
 type SearchType     = "All" | "Name" | "Phone" | "Vehicle" | "ID";
@@ -29,27 +32,14 @@ interface CustomerFormData {
 
 type DrawerState  = Customer | null;
 type ModalState   = null | "add" | { edit: Customer } | { delete: Customer };
-// Initial data and configuration constants
-const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 1, name: "Jonathan Kalu",   phone: "+1 (555) 012-9934", initials: "JK", vehicles: 4,  revenue: 12450.0,  lastVisit: "Oct 12, 2023", status: "Active",   vehiclePlates: ["KAL-1234", "KAL-5678"] },
-  { id: 2, name: "Sarah Richards",  phone: "+1 (555) 014-8821", initials: "SR", vehicles: 1,  revenue: 3200.5,   lastVisit: "Nov 02, 2023", status: "Active",   vehiclePlates: ["RIC-4411"] },
-  { id: 3, name: "Apex Motors Ltd.",phone: "+1 (555) 019-2231", initials: "AM", vehicles: 12, revenue: 45900.0,  lastVisit: "Oct 29, 2023", status: "Active",   vehiclePlates: ["APX-0010", "APX-0022"] },
-  { id: 4, name: "Marcus Peterson", phone: "+1 (555) 011-0099", initials: "MP", vehicles: 2,  revenue: 950.0,    lastVisit: "Nov 05, 2023", status: "Active",   vehiclePlates: ["PET-7766"] },
-  { id: 5, name: "Diana Osei",      phone: "+1 (555) 013-4420", initials: "DO", vehicles: 3,  revenue: 7820.0,   lastVisit: "Sep 18, 2023", status: "Inactive", vehiclePlates: ["OSE-3391"] },
-  { id: 6, name: "Robert Finch",    phone: "+1 (555) 016-2200", initials: "RF", vehicles: 1,  revenue: 1540.75,  lastVisit: "Oct 01, 2023", status: "Active",   vehiclePlates: ["FIN-8820"] },
-];
 
 const SORT_OPTIONS: SortOption[]   = ["Total Spend", "Last Visit", "Name", "Vehicles"];
 const STATUS_OPTIONS: StatusFilter[]= ["All Active", "All", "Inactive"];
 const SEARCH_TYPES: SearchType[]   = ["All", "Name", "Phone", "Vehicle", "ID"];
 
-let nextCustomerId = 300;
-
 function makeInitials(name: string): string {
   return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
-
-
 
 const EMPTY_FORM: CustomerFormData = { name: "", phone: "", status: "Active", plate1: "", plate2: "" };
 // Modal for creating new customers or modifying existing ones
@@ -169,6 +159,17 @@ function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onC
 }
 // Side drawer showing in-depth customer information
 function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Customer; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+  const [history, setHistory] = useState<CustomerHistoryResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    customerService.getHistory(customer.id)
+      .then(res => setHistory(res))
+      .catch(err => console.error(err))
+      .finally(() => setLoading(false));
+  }, [customer.id]);
+
   return (
     <>
       <div style={{ position: "fixed", inset: 0, zIndex: 200 }} onClick={onClose} />
@@ -193,9 +194,9 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
         {/* Stats Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
           {[
-            { label: "TOTAL REVENUE", value: `RS ${customer.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
+            { label: "TOTAL REVENUE", value: loading ? "Loading..." : `RS ${(history?.totalSpent || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}` },
             { label: "VEHICLES",      value: String(customer.vehicles) },
-            { label: "LAST VISIT",    value: customer.lastVisit },
+            { label: "SERVICES RUN",   value: loading ? "Loading..." : String(history?.totalServices || 0) },
             { label: "CUSTOMER ID",   value: `#CUS-${String(customer.id).padStart(4, "0")}` },
           ].map(({ label, value }) => (
             <div key={label} style={{ background: "#f9fafb", borderRadius: 10, padding: 14 }}>
@@ -238,7 +239,8 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
 export default function CustomerSearch() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
-  const [customers, setCustomers]         = useState<Customer[]>(INITIAL_CUSTOMERS);
+  const [customers, setCustomers]         = useState<Customer[]>([]);
+  const [loading, setLoading]             = useState(false);
 
   const isStaff = user?.roles?.includes('Staff');
 
@@ -272,49 +274,44 @@ export default function CustomerSearch() {
   const [sortBy, setSortBy]               = useState<SortOption>("Total Spend");
   const [drawer, setDrawer]               = useState<DrawerState>(null);
   const [modal, setModal]                 = useState<ModalState>(null);
-// Derived state calculations like filtering and sorting
+
+  const fetchCustomers = async () => {
+    try {
+      setLoading(true);
+      const res = await customerService.search(
+        search,
+        searchType,
+        statusFilter === "All Active" ? "Active" : statusFilter === "All" ? "All" : "Inactive",
+        sortBy === "Total Spend" ? "Revenue" : sortBy === "Vehicles" ? "Vehicles" : sortBy === "Name" ? "Name" : "LastVisit"
+      );
+      setCustomers(res.map(c => ({
+        id: c.id,
+        name: c.fullName,
+        phone: c.phone || "N/A",
+        initials: makeInitials(c.fullName),
+        vehicles: c.vehicles ? c.vehicles.length : 0,
+        revenue: 0,
+        lastVisit: "N/A",
+        status: "Active",
+        vehiclePlates: c.vehicles ? c.vehicles.map(v => v.licensePlate) : []
+      })));
+    } catch (err) {
+      console.error("Failed to query customers:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, [search, searchType, statusFilter, sortBy]);
+
   const filtered = useMemo(() => {
-    return customers
-      .filter((c) => {
-        const matchStatus =
-          statusFilter === "All" ||
-          (statusFilter === "All Active" && c.status === "Active") ||
-          (statusFilter === "Inactive"   && c.status === "Inactive");
+    return customers;
+  }, [customers]);
 
-        if (!matchStatus) return false;
-
-        const q = search.toLowerCase().trim();
-        if (!q) return true;
-
-        return (
-          ((searchType === "All" || searchType === "Name")    && c.name.toLowerCase().includes(q))  ||
-          ((searchType === "All" || searchType === "Phone")   && c.phone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))) ||
-          ((searchType === "All" || searchType === "Vehicle") && c.vehiclePlates.some((p) => p.toLowerCase().includes(q))) ||
-          ((searchType === "All" || searchType === "ID")      && String(c.id).includes(q))
-        );
-      })
-      .sort((a, b) => {
-        if (sortBy === "Total Spend") return b.revenue  - a.revenue;
-        if (sortBy === "Vehicles")    return b.vehicles - a.vehicles;
-        if (sortBy === "Name")        return a.name.localeCompare(b.name);
-        return 0;
-      });
-  }, [customers, search, searchType, statusFilter, sortBy]);
 // Handlers for creating, reading, updating, and deleting entries
-  const handleAdd = (data: CustomerFormData) => {
-    const plates = [data.plate1.trim(), data.plate2.trim()].filter(Boolean);
-    const newCustomer: Customer = {
-      id:            ++nextCustomerId,
-      name:          data.name.trim(),
-      phone:         data.phone.trim(),
-      initials:      makeInitials(data.name),
-      vehicles:      plates.length,
-      revenue:       0,
-      lastVisit:     new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
-      status:        data.status,
-      vehiclePlates: plates,
-    };
-    setCustomers((prev) => [newCustomer, ...prev]);
+  const handleAdd = (_data: CustomerFormData) => {
     setModal(null);
   };
 
@@ -531,12 +528,16 @@ export default function CustomerSearch() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 && (
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>Loading customer profiles...</td>
+                    </tr>
+                  ) : filtered.length === 0 ? (
                     <tr>
                       <td colSpan={5} style={{ padding: 48, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>No customers match your search.</td>
                     </tr>
-                  )}
-                  {filtered.map((c) => (
+                  ) : null}
+                  {!loading && filtered.map((c) => (
                     <tr
                       key={c.id}
                       style={{ borderBottom: "1px solid #f9fafb", cursor: "pointer", background: drawer?.id === c.id ? "#f9fafb" : "" }}

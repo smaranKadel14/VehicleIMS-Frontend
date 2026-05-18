@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import vendorService from "../../services/vendorService";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -47,18 +48,8 @@ interface VendorFormData {
 }
 
 type ModalState = null | "add" | { edit: Vendor } | { delete: Vendor };
-// Initial data and configuration constants
-const INITIAL_VENDORS: Vendor[] = [
-  { id: 1, name: "Axel & Co. Logistics",    initials: "AX", vendorId: "VND-4822", contact: "Marcus Sterling", email: "m.sterling@axelco.de",    rating: 4.9, status: "ACTIVE",   category: "Logistics"    },
-  { id: 2, name: "Nordic Transmission",     initials: "NT", vendorId: "VND-9901", contact: "Elena Varkas",    email: "evarkas@nordic.se",         rating: 4.7, status: "ACTIVE",   category: "Transmission" },
-  { id: 3, name: "Peak Tech Parts",         initials: "PT", vendorId: "VND-2115", contact: "David Chen",      email: "dchen@peaktech.com",         rating: 3.2, status: "INACTIVE", category: "Electronics"  },
-  { id: 4, name: "Rapid Systems",           initials: "RS", vendorId: "VND-6610", contact: "Sarah Millane",   email: "sarah@rapid-parts.uk",       rating: 4.5, status: "ACTIVE",   category: "General"      },
-  { id: 5, name: "Industrial Drivetrain GmbH", initials: "ID", vendorId: "VND-3302", contact: "Stefan Müller", email: "s.mueller@id-gmbh.de",    rating: 4.8, status: "ACTIVE",   category: "Drivetrain"   },
-];
 
 const CATEGORIES = ["Logistics", "Transmission", "Electronics", "Drivetrain", "General", "Braking", "Electrical"];
-
-let nextVendorId = 200;
 
 function makeInitials(name: string): string {
   return name
@@ -66,10 +57,6 @@ function makeInitials(name: string): string {
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
-}
-
-function makeVendorId(): string {
-  return `VND-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 const NAV_ITEMS = [
@@ -258,7 +245,7 @@ function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: 
         </div>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Remove Vendor?</h2>
         <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>
-          Are you sure you want to remove <strong>{vendor.name}</strong>? This will terminate the supply chain partnership.
+          Are you sure you want to remove <strong>{vendor.name}</strong>? This will terminate the supply partnership.
         </p>
         <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
           <button onClick={onClose}    style={{ padding: "10px 28px", border: "1.5px solid #e5e7eb", borderRadius: 8, background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>Cancel</button>
@@ -272,7 +259,31 @@ function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: 
 export default function VendorManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
-  const [vendors, setVendors]       = useState<Vendor[]>(INITIAL_VENDORS);
+  const [vendors, setVendors]       = useState<Vendor[]>([]);
+
+  const fetchVendors = async () => {
+    try {
+      const data = await vendorService.getAll();
+      const mapped: Vendor[] = data.map(v => ({
+        id: v.id,
+        name: v.name,
+        initials: makeInitials(v.name),
+        vendorId: `VND-${1000 + v.id}`,
+        contact: v.contactPerson || "No Contact Person",
+        email: v.email || "No Email",
+        rating: 4.8,
+        status: "ACTIVE",
+        category: "General"
+      }));
+      setVendors(mapped);
+    } catch (err) {
+      console.error("Failed to load vendors:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchVendors();
+  }, []);
 
   const handleLogout = () => {
     authService.logout();
@@ -300,26 +311,30 @@ export default function VendorManagement() {
     });
   }, [vendors, filter, search]);
 
-  const activeCount = useMemo(() => vendors.filter((v) => v.status === "ACTIVE").length, [vendors]);
+  const activeCount = useMemo(() => {
+    if (!vendors.length) return 0;
+    return vendors.filter((v) => v.status === "ACTIVE").length;
+  }, [vendors]);
+
   const avgRating   = useMemo(() => {
     if (!vendors.length) return 0;
     return vendors.reduce((s, v) => s + v.rating, 0) / vendors.length;
   }, [vendors]);
 // Handlers for creating, reading, updating, and deleting entries
-  const handleAdd = (data: VendorFormData) => {
-    const newVendor: Vendor = {
-      id:       ++nextVendorId,
-      name:     data.name.trim(),
-      initials: makeInitials(data.name),
-      vendorId: data.vendorId.trim() || makeVendorId(),
-      contact:  data.contact.trim(),
-      email:    data.email.trim(),
-      rating:   Math.min(5, Math.max(1, parseFloat(data.rating) || 5)),
-      status:   data.status,
-      category: data.category,
-    };
-    setVendors((prev) => [newVendor, ...prev]);
-    setModal(null);
+  const handleAdd = async (data: VendorFormData) => {
+    try {
+      await vendorService.create({
+        name: data.name.trim(),
+        contactPerson: data.contact.trim(),
+        email: data.email.trim(),
+        phone: "N/A",
+        address: "N/A"
+      });
+      await fetchVendors();
+      setModal(null);
+    } catch (err) {
+      console.error("Error creating vendor:", err);
+    }
   };
 
   const handleEdit = (data: VendorFormData) => {

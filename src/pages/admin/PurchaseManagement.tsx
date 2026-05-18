@@ -25,29 +25,13 @@ import {
   FileCheck
 } from 'lucide-react';
 import authService from "../../services/authService";
+import purchaseService from "../../services/purchaseService";
+import type { PurchaseInvoiceResponse, CreatePurchaseInvoiceRequest } from "../../services/purchaseService";
+import partService from "../../services/partService";
+import vendorService from "../../services/vendorService";
+import type { VendorResponse } from "../../services/vendorService";
 
 // Interface and definitions
-interface PurchaseItem {
-  partId: number;
-  partName: string;
-  sku: string;
-  quantity: number;
-  unitPrice: number;
-}
-
-interface PurchaseInvoice {
-  id: number;
-  invoiceNumber: string;
-  vendorName: string;
-  vendorEmail: string;
-  date: string;
-  items: PurchaseItem[];
-  subtotal: number;
-  discount: number;
-  grandTotal: number;
-  status: "COMPLETED" | "PENDING";
-}
-
 interface Part {
   id: number;
   name: string;
@@ -60,68 +44,24 @@ interface Part {
   icon: string;
 }
 
-type ModalState = null | "add" | { view: PurchaseInvoice };
-
-// Common mock parts for dropdown
-const INITIAL_PARTS: Part[] = [
-  { id: 1, name: "High-Performance Fuel Injector",  sku: "#FI-88291-LX",  category: "ENGINE COMPONENTS", stock: 8,   status: "LOW",      price: 284.5,  supplier: "Bosch Automotive GmbH",  icon: "⚙️" },
-  { id: 2, name: "Ceramic Brake Pads (Front)",       sku: "#BP-00221-CF",  category: "BRAKING SYSTEM",    stock: 142, status: "OK",       price: 112.0,  supplier: "Brembo S.p.A",           icon: "🔘" },
-  { id: 3, name: "Li-Ion Battery Cell Module",       sku: "#BT-998-22X",   category: "ELECTRICAL",        stock: 34,  status: "OK",       price: 1240.0, supplier: "Panasonic Energy Ltd",    icon: "🔋" },
-  { id: 4, name: "Turbocharger Wastegate Actuator",  sku: "#TC-44512-WA",  category: "TRANSMISSION",      stock: 3,   status: "CRITICAL",  price: 455.0,  supplier: "Garrett Motion Inc",      icon: "🔩" },
-  { id: 5, name: "Variable Valve Timing Solenoid",   sku: "#VV-11002-LX",  category: "ENGINE COMPONENTS", stock: 56,  status: "OK",       price: 88.25,  supplier: "Denso Corporation",       icon: "⚙️" },
-];
-
-const INITIAL_PURCHASES: PurchaseInvoice[] = [
-  {
-    id: 1,
-    invoiceNumber: "INV-PUR-9102",
-    vendorName: "Bosch Automotive GmbH",
-    vendorEmail: "orders@bosch-auto.de",
-    date: "2026-05-15T10:00:00Z",
-    items: [
-      { partId: 1, partName: "High-Performance Fuel Injector", sku: "#FI-88291-LX", quantity: 50, unitPrice: 280.00 },
-      { partId: 5, partName: "Variable Valve Timing Solenoid", sku: "#VV-11002-LX", quantity: 20, unitPrice: 85.00 }
-    ],
-    subtotal: 15700.00,
-    discount: 785.00, // 5% bulk discount (quantity >= 50)
-    grandTotal: 14915.00,
-    status: "COMPLETED"
-  },
-  {
-    id: 2,
-    invoiceNumber: "INV-PUR-9101",
-    vendorName: "Brembo S.p.A",
-    vendorEmail: "billing@brembo.it",
-    date: "2026-05-12T14:30:00Z",
-    items: [
-      { partId: 2, partName: "Ceramic Brake Pads (Front)", sku: "#BP-00221-CF", quantity: 40, unitPrice: 110.00 }
-    ],
-    subtotal: 4400.00,
-    discount: 0.00,
-    grandTotal: 4400.00,
-    status: "COMPLETED"
-  },
-  {
-    id: 3,
-    invoiceNumber: "INV-PUR-9100",
-    vendorName: "Nordic Transmission",
-    vendorEmail: "supply@nordic.se",
-    date: "2026-05-08T09:15:00Z",
-    items: [
-      { partId: 3, partName: "Li-Ion Battery Cell Module", sku: "#BT-998-22X", quantity: 10, unitPrice: 1200.00 }
-    ],
-    subtotal: 12000.00,
-    discount: 0.00,
-    grandTotal: 12000.00,
-    status: "COMPLETED"
-  }
-];
+type ModalState = null | "add" | { view: PurchaseInvoiceResponse };
 
 // Helper to determine stock status
 function deriveStatus(stock: number): string {
   if (stock <= 3) return "CRITICAL";
   if (stock <= 10) return "LOW";
   return "OK";
+}
+
+function getCategoryFromSku(sku: string): string {
+  const s = sku.toUpperCase();
+  if (s.includes("FI") || s.includes("ENG")) return "ENGINE COMPONENTS";
+  if (s.includes("BR") || s.includes("BRK")) return "BRAKING SYSTEM";
+  if (s.includes("EL") || s.includes("ELE")) return "ELECTRICAL";
+  if (s.includes("TR") || s.includes("TRA")) return "TRANSMISSION";
+  if (s.includes("SU") || s.includes("SUS")) return "SUSPENSION";
+  if (s.includes("EX") || s.includes("EXH")) return "EXHAUST";
+  return "ENGINE COMPONENTS";
 }
 
 // Reusable components
@@ -158,7 +98,7 @@ const AdminStatCard = ({ label, value, trend, icon: Icon, variant = 'white' }: {
     <div className={`mt-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase ${variant === 'black' ? 'text-neutral/30' : 'text-tertiary opacity-80'}`}>
        {trend.toLowerCase().includes('critical') ? <Clock className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
        {trend}
-    </div>
+     </div>
   </div>
 );
 
@@ -167,27 +107,41 @@ export default function PurchaseManagement() {
   const user = authService.getCurrentUser();
   
   // States
-  const [purchases, setPurchases] = useState<PurchaseInvoice[]>(() => {
-    const saved = localStorage.getItem('purchases');
-    return saved ? JSON.parse(saved) : INITIAL_PURCHASES;
-  });
-  const [parts, setParts] = useState<Part[]>(() => {
-    const saved = localStorage.getItem('parts');
-    return saved ? JSON.parse(saved) : INITIAL_PARTS;
-  });
+  const [purchases, setPurchases] = useState<PurchaseInvoiceResponse[]>([]);
+  const [parts, setParts] = useState<Part[]>([]);
+  const [vendors, setVendors] = useState<VendorResponse[]>([]);
   
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
   const [alert, setAlert] = useState<{ message: string; type: "success" | "info" } | null>(null);
 
-  // Sync state with localStorage
-  useEffect(() => {
-    localStorage.setItem('purchases', JSON.stringify(purchases));
-  }, [purchases]);
+  const fetchPurchasesAndInventory = async () => {
+    try {
+      const partsData = await partService.getAll();
+      const mappedParts: Part[] = partsData.map(p => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        category: getCategoryFromSku(p.sku),
+        stock: p.stockQuantity,
+        status: deriveStatus(p.stockQuantity),
+        price: p.price,
+        supplier: p.vendorName || "Default Vendor",
+        icon: "⚙️"
+      }));
+      setParts(mappedParts);
+
+      const purchasesData = await purchaseService.getAll();
+      setPurchases(purchasesData);
+    } catch (err) {
+      console.error("Failed to fetch purchases data:", err);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('parts', JSON.stringify(parts));
-  }, [parts]);
+    fetchPurchasesAndInventory();
+    vendorService.getAll().then(v => setVendors(v)).catch(err => console.error(err));
+  }, []);
 
   // Alert timer
   useEffect(() => {
@@ -214,7 +168,7 @@ export default function PurchaseManagement() {
   ];
 
   // Derived statistics
-  const totalCost = useMemo(() => purchases.reduce((s, p) => s + p.grandTotal, 0), [purchases]);
+  const totalCost = useMemo(() => purchases.reduce((s, p) => s + p.finalTotal, 0), [purchases]);
   const stockAddedCount = useMemo(() => {
     return purchases.reduce((s, p) => s + p.items.reduce((sum, item) => sum + item.quantity, 0), 0);
   }, [purchases]);
@@ -228,29 +182,18 @@ export default function PurchaseManagement() {
   }, [purchases, search]);
 
   // Log new purchase
-  const handleSavePurchase = (newInvoice: PurchaseInvoice) => {
-    setPurchases(prev => [newInvoice, ...prev]);
-    
-    // Automatically replenish parts stock
-    const updatedParts = parts.map(p => {
-      const purchased = newInvoice.items.find(item => item.partId === p.id);
-      if (purchased) {
-        const nextStock = p.stock + purchased.quantity;
-        return {
-          ...p,
-          stock: nextStock,
-          status: deriveStatus(nextStock)
-        };
-      }
-      return p;
-    });
-    setParts(updatedParts);
-
-    setModal(null);
-    setAlert({
-      message: `Invoice ${newInvoice.invoiceNumber} recorded successfully! stock levels replenished.`,
-      type: "success"
-    });
+  const handleSavePurchase = async (reqPayload: CreatePurchaseInvoiceRequest) => {
+    try {
+      await purchaseService.create(reqPayload);
+      await fetchPurchasesAndInventory();
+      setModal(null);
+      setAlert({
+        message: `Bulk purchase invoice registered successfully! Stock levels replenished.`,
+        type: "success"
+      });
+    } catch (err) {
+      console.error("Failed to record bulk purchase:", err);
+    }
   };
 
   return (
@@ -412,7 +355,7 @@ export default function PurchaseManagement() {
                           <td className="px-10 py-6 text-sm font-bold tracking-tight text-primary font-mono">{inv.invoiceNumber}</td>
                           <td className="px-10 py-6">
                             <p className="text-sm font-black tracking-tight">{inv.vendorName}</p>
-                            <p className="text-[10px] text-tertiary font-bold tracking-wider mt-1 opacity-60">{inv.vendorEmail}</p>
+                            <p className="text-[10px] text-tertiary font-bold tracking-wider mt-1 opacity-60">ID: VND-{inv.vendorId}</p>
                           </td>
                           <td className="px-10 py-6 text-xs font-bold text-tertiary tracking-tight">
                             {new Date(inv.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -420,10 +363,10 @@ export default function PurchaseManagement() {
                           <td className="px-10 py-6 text-sm font-bold text-tertiary">
                             {inv.items.reduce((s, i) => s + i.quantity, 0)} units ({inv.items.length} parts)
                           </td>
-                          <td className="px-10 py-6 text-base font-black text-primary">RS {inv.grandTotal.toFixed(2)}</td>
+                          <td className="px-10 py-6 text-base font-black text-primary">RS {inv.finalTotal.toFixed(2)}</td>
                           <td className="px-10 py-6">
                             <span className="px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest bg-black text-neutral">
-                              {inv.status}
+                              COMPLETED
                             </span>
                           </td>
                           <td className="px-10 py-6 text-right">
@@ -450,6 +393,7 @@ export default function PurchaseManagement() {
       {modal === "add" && (
         <AddPurchaseModal 
           partsList={parts}
+          vendors={vendors}
           onClose={() => setModal(null)}
           onSave={handleSavePurchase}
         />
@@ -470,35 +414,34 @@ export default function PurchaseManagement() {
 // Modal: Log Purchase Invoice
 function AddPurchaseModal({
   partsList,
+  vendors,
   onClose,
   onSave
 }: {
   partsList: Part[];
+  vendors: VendorResponse[];
   onClose: () => void;
-  onSave: (inv: PurchaseInvoice) => void;
+  onSave: (inv: CreatePurchaseInvoiceRequest) => void;
 }) {
-  const [vendorName, setVendorName] = useState("Bosch Automotive GmbH");
-  const [vendorEmail, setVendorEmail] = useState("orders@bosch-auto.de");
-  const [items, setItems] = useState<Omit<PurchaseItem, "partName" | "sku">[]>([
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("");
+  const [items, setItems] = useState<{ partId: number; quantity: number; unitPrice: number; }[]>([
     { partId: partsList[0]?.id || 1, quantity: 10, unitPrice: partsList[0]?.price || 100 }
   ]);
   const [errors, setErrors] = useState<string | null>(null);
 
-  const VENDORS = [
-    { name: "Bosch Automotive GmbH", email: "orders@bosch-auto.de" },
-    { name: "Brembo S.p.A", email: "billing@brembo.it" },
-    { name: "Nordic Transmission", email: "supply@nordic.se" },
-    { name: "Panasonic Energy Ltd", email: "orders@panasonic-energy.jp" },
-    { name: "Garrett Motion Inc", email: "acquisitions@garrettmotion.com" }
-  ];
+  useEffect(() => {
+    if (vendors.length > 0 && !selectedVendorId) {
+      setSelectedVendorId(String(vendors[0].id));
+    }
+  }, [vendors, selectedVendorId]);
 
   const handleVendorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selected = VENDORS.find(v => v.name === e.target.value);
-    if (selected) {
-      setVendorName(selected.name);
-      setVendorEmail(selected.email);
-    }
+    setSelectedVendorId(e.target.value);
   };
+
+  const selectedVendor = useMemo(() => {
+    return vendors.find(v => String(v.id) === selectedVendorId) || vendors[0];
+  }, [vendors, selectedVendorId]);
 
   const handleAddItem = () => {
     setItems(prev => [...prev, { partId: partsList[0]?.id || 1, quantity: 10, unitPrice: partsList[0]?.price || 100 }]);
@@ -544,36 +487,25 @@ function AddPurchaseModal({
 
   const handleLogInvoice = () => {
     // Validations
+    if (!selectedVendorId) {
+      setErrors("Please select a vendor supplier.");
+      return;
+    }
     if (items.some(item => item.quantity <= 0 || item.unitPrice <= 0)) {
       setErrors("Quantities and unit prices must be positive numbers.");
       return;
     }
 
-    const compiledItems: PurchaseItem[] = items.map(item => {
-      const part = partsList.find(p => p.id === item.partId)!;
-      return {
-        partId: item.partId,
-        partName: part.name,
-        sku: part.sku,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice
-      };
+    const compiledItems = items.map(item => ({
+      partId: item.partId,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice
+    }));
+
+    onSave({
+      vendorId: Number(selectedVendorId),
+      items: compiledItems
     });
-
-    const newInvoice: PurchaseInvoice = {
-      id: Date.now(),
-      invoiceNumber: `INV-PUR-${Math.floor(1000 + Math.random() * 9000)}`,
-      vendorName,
-      vendorEmail,
-      date: new Date().toISOString(),
-      items: compiledItems,
-      subtotal,
-      discount,
-      grandTotal,
-      status: "COMPLETED"
-    };
-
-    onSave(newInvoice);
   };
 
   return (
@@ -607,18 +539,18 @@ function AddPurchaseModal({
             <div className="space-y-2.5">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary ml-1">Supplier Vendor *</label>
               <select 
-                value={vendorName}
+                value={selectedVendorId}
                 onChange={handleVendorChange}
                 className="w-full bg-secondary/5 border-none rounded-2xl py-4 px-5 text-sm font-bold text-primary focus:ring-4 focus:ring-primary/5 transition-all"
               >
-                {VENDORS.map(v => <option key={v.name} value={v.name}>{v.name}</option>)}
+                {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
               </select>
             </div>
             <div className="space-y-2.5">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary ml-1">Supplier Contact Email</label>
               <input 
                 type="email"
-                value={vendorEmail}
+                value={selectedVendor?.email || ""}
                 disabled
                 className="w-full bg-secondary/5 border-none rounded-2xl py-4 px-5 text-sm font-bold text-tertiary/60 cursor-not-allowed"
               />
@@ -747,7 +679,7 @@ function ViewReceiptModal({
   invoice,
   onClose
 }: {
-  invoice: PurchaseInvoice;
+  invoice: PurchaseInvoiceResponse;
   onClose: () => void;
 }) {
   return (
@@ -758,7 +690,7 @@ function ViewReceiptModal({
         <button onClick={onClose} className="absolute top-8 right-8 text-tertiary hover:text-primary transition-colors z-10">
           <X className="w-6 h-6" />
         </button>
-
+ 
         {/* Receipt Wrapper */}
         <div className="p-10 space-y-8 flex flex-col">
           
@@ -770,7 +702,7 @@ function ViewReceiptModal({
             <h3 className="text-2xl font-heading font-extrabold tracking-tighter text-primary">ENGINECORE INDUSTRIAL</h3>
             <p className="text-[9px] font-black uppercase tracking-[0.3em] text-tertiary">Bulk Purchase Receipt</p>
           </div>
-
+ 
           {/* Invoice Specs */}
           <div className="grid grid-cols-2 gap-4 text-xs font-bold text-tertiary leading-normal">
             <div>
@@ -794,7 +726,7 @@ function ViewReceiptModal({
               </p>
             </div>
           </div>
-
+ 
           {/* Line Items List */}
           <div className="space-y-4 border-t border-secondary/10 pt-6">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary">Acquired Line Items</h4>
@@ -804,29 +736,29 @@ function ViewReceiptModal({
                 <div key={idx} className="flex justify-between items-center text-xs font-bold text-tertiary pt-3 first:pt-0">
                   <div className="space-y-1">
                     <p className="text-sm font-black text-primary">{item.partName}</p>
-                    <p className="text-[9px] font-bold text-tertiary opacity-70">{item.sku} • {item.quantity} units @ RS {item.unitPrice.toFixed(2)}</p>
+                    <p className="text-[9px] font-bold text-tertiary opacity-70">ID: PART-{item.partId} • {item.quantity} units @ RS {item.unitPrice.toFixed(2)}</p>
                   </div>
-                  <span className="text-sm font-black text-primary">RS {(item.quantity * item.unitPrice).toFixed(2)}</span>
+                  <span className="text-sm font-black text-primary">RS {item.totalPrice.toFixed(2)}</span>
                 </div>
               ))}
             </div>
           </div>
-
+ 
           {/* Financials Summary */}
           <div className="bg-secondary/5 rounded-2xl p-6 space-y-2.5 border border-secondary/10">
             <div className="flex justify-between text-xs font-bold text-tertiary">
               <span>Subtotal</span>
-              <span className="text-primary font-black">RS {invoice.subtotal.toFixed(2)}</span>
+              <span className="text-primary font-black">RS {invoice.subTotal.toFixed(2)}</span>
             </div>
-            {invoice.discount > 0 && (
+            {invoice.discountAmount > 0 && (
               <div className="flex justify-between text-xs font-bold text-green-600">
-                <span>Volume Discount (5%)</span>
-                <span className="font-black">-RS {invoice.discount.toFixed(2)}</span>
+                <span>Volume Discount ({invoice.discountPercentage}%)</span>
+                <span className="font-black">-RS {invoice.discountAmount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-base font-black text-primary border-t border-secondary/10 pt-3">
               <span className="text-xs uppercase tracking-widest text-tertiary">Grand Total</span>
-              <span>RS {invoice.grandTotal.toFixed(2)}</span>
+              <span>RS {invoice.finalTotal.toFixed(2)}</span>
             </div>
           </div>
 
