@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { useNavigate } from "react-router-dom";
+import authService from "../../services/authService";
 import {
   Bell,
   LayoutDashboard,
@@ -15,6 +17,7 @@ import {
   TriangleAlert,
   Upload,
   CircleHelp,
+  ArrowLeft,
 } from "lucide-react";
 
 type ProfileData = {
@@ -40,11 +43,9 @@ const initialProfile: ProfileData = {
 };
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard" },
-  { icon: Package, label: "Inventory" },
-  { icon: Wrench, label: "Work Orders" },
-  { icon: Truck, label: "Logistics" },
-  { icon: BarChart3, label: "Analytics" },
+  { icon: LayoutDashboard, label: "Dashboard", view: "dashboard" },
+  { icon: Wrench, label: "Service Scheduler", view: "services" },
+  { icon: History, label: "History & Reviews", view: "history" },
 ];
 
 const securityItems = [
@@ -101,6 +102,7 @@ function InfoField({
 }
 
 export default function ProfilePage() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(initialProfile);
   const [draft, setDraft] = useState(initialProfile);
   const [isEditing, setIsEditing] = useState(false);
@@ -161,9 +163,10 @@ export default function ProfilePage() {
 
           <nav className="flex-1 px-4 py-6">
             <div className="space-y-2">
-              {navItems.map(({ icon: Icon, label }) => (
+              {navItems.map(({ icon: Icon, label, view }) => (
                 <button
                   key={label}
+                  onClick={() => navigate("/dashboard", { state: { activeView: view } })}
                   className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/65 transition hover:bg-white/6 hover:text-white"
                 >
                   <Icon className="h-4 w-4" />
@@ -174,11 +177,20 @@ export default function ProfilePage() {
           </nav>
 
           <div className="border-t border-white/10 p-4">
-            <button className="mb-2 flex w-full items-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium">
+            <button 
+              onClick={() => navigate("/profile")}
+              className="mb-2 flex w-full items-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium"
+            >
               <Settings className="h-4 w-4" />
               Settings
             </button>
-            <button className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/65 transition hover:bg-white/6 hover:text-white">
+            <button 
+              onClick={() => {
+                authService.logout();
+                navigate("/login");
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/65 transition hover:bg-white/6 hover:text-white"
+            >
               <LogOut className="h-4 w-4" />
               Sign Out
             </button>
@@ -188,7 +200,14 @@ export default function ProfilePage() {
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="border-b border-secondary/40 bg-white">
             <div className="flex h-16 items-center justify-between px-5 sm:px-8">
-              <div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary/15 transition-all text-primary"
+                  title="Back to Dashboard"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
                 <p className="text-sm font-semibold">Account Settings</p>
               </div>
 

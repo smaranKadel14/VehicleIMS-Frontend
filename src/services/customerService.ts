@@ -90,6 +90,30 @@ const customerService = {
     });
     return response.data;
   },
+
+  bookAppointment: async (
+    customerId: number,
+    data: { appointmentDate: string; vehicleId: number; notes?: string }
+  ) => {
+    const response = await api.post<{ message: string }>(`/Appointment/${customerId}`, data);
+    return response.data;
+  },
+
+  submitPartRequest: async (
+    customerId: number,
+    data: { partName: string; partId?: number }
+  ) => {
+    const response = await api.post<{ message: string }>(`/PartRequest/${customerId}`, data);
+    return response.data;
+  },
+
+  submitReview: async (
+    customerId: number,
+    data: { rating: number; comment?: string; partId?: number }
+  ) => {
+    const response = await api.post<{ message: string }>(`/Review/${customerId}`, data);
+    return response.data;
+  },
 };
 
 export default customerService;
