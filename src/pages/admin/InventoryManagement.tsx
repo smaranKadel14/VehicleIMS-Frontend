@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -9,9 +9,7 @@ import {
   LogOut, 
   Search, 
   Bell, 
-  Clock, 
   Zap, 
-  TrendingUp,
   AlertCircle,
   Boxes,
   Cpu,
@@ -19,12 +17,10 @@ import {
   Battery,
   Nut,
   Wind,
-  Users
+  Users,
+  ShieldCheck
 } from 'lucide-react';
-import authService from "../../services/authService";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
+import authService from "../../services/authService";// Data types and interface definitions
 type StockStatus = "LOW" | "CRITICAL" | "OK";
 
 interface Part {
@@ -48,20 +44,14 @@ interface PartFormData {
   supplier: string;
 }
 
-type ModalState = null | "add" | { edit: Part } | { delete: Part };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
+type ModalState = null | "add" | { edit: Part } | { delete: Part };// Helper functions for common logic
 function deriveStatus(stock: number): StockStatus {
   if (stock <= 3) return "CRITICAL";
   if (stock <= 10) return "LOW";
   return "OK";
 }
 
-let nextId = 100;
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
+let nextId = 100;// Initial data and configuration constants
 const INITIAL_PARTS: Part[] = [
   { id: 1, name: "High-Performance Fuel Injector",  sku: "#FI-88291-LX",  category: "ENGINE COMPONENTS", stock: 8,   status: "LOW",      price: 284.5,  supplier: "Bosch Automotive GmbH",  icon: "⚙️" },
   { id: 2, name: "Ceramic Brake Pads (Front)",       sku: "#BP-00221-CF",  category: "BRAKING SYSTEM",    stock: 142, status: "OK",       price: 112.0,  supplier: "Brembo S.p.A",           icon: "🔘" },
@@ -98,12 +88,10 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
   { icon: Package, label: "Inventory", active: true, path: "/inventory" },
   { icon: Users, label: "Vendors", path: "/vendors" },
+  { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
   { icon: Wrench, label: "Work Orders", path: "#" },
   { icon: Truck, label: "Logistics", path: "#" },
-];
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
+];// Reusable UI components used within this page
 const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
   <button 
     onClick={onClick}
@@ -121,25 +109,6 @@ const HeaderIcon = ({ icon: Icon, badge = false }: { icon: any, badge?: boolean 
   </button>
 );
 
-const AdminStatCard = ({ label, value, trend, icon: Icon, delay = "", variant = 'white' }: { label: string, value: string, trend: string, icon: any, delay?: string, variant?: 'white' | 'gray' | 'black' }) => (
-  <div className={`rounded-3xl p-6 transition-all duration-100 hover:duration-200 ease-out hover:shadow-xl hover:-translate-y-1 ${delay} flex flex-col justify-between min-h-[170px] cursor-default ${
-    variant === 'black' ? 'bg-black text-neutral' : 
-    variant === 'gray' ? 'bg-[#D4D4D4] text-primary' : 
-    'bg-white shadow-sm border border-secondary/10'
-  }`}>
-    <div className="flex justify-between items-start">
-      <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${variant === 'black' ? 'text-neutral/40' : 'text-tertiary'}`}>{label}</p>
-      <Icon className={`w-5 h-5 ${variant === 'black' ? 'text-neutral/40' : 'text-tertiary'}`} />
-    </div>
-    <div className="mt-4">
-      <p className="text-3xl font-heading font-extrabold tracking-tighter leading-none">{value}</p>
-    </div>
-    <div className={`mt-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase ${variant === 'black' ? 'text-neutral/30' : 'text-tertiary opacity-80'}`}>
-       {trend.toLowerCase().includes('critical') ? <Clock className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-       {trend}
-    </div>
-  </div>
-);
 
 function StockBadge({ stock }: { stock: number }) {
   const status = deriveStatus(stock);
@@ -158,10 +127,7 @@ function StockBadge({ stock }: { stock: number }) {
       {labels[status]}
     </span>
   );
-}
-
-// ─── Add / Edit Modal ─────────────────────────────────────────────────────────
-
+}// Modal for creating new entries or modifying existing ones
 const EMPTY_FORM: PartFormData = { name: "", sku: "", category: "ENGINE COMPONENTS", stock: "", price: "", supplier: "" };
 
 function AddEditModal({
@@ -264,10 +230,7 @@ function AddEditModal({
       </div>
     </div>
   );
-}
-
-// ─── Delete Modal ─────────────────────────────────────────────────────────────
-
+}// Modal to confirm the deletion of an entry
 function DeleteModal({ part, onClose, onConfirm }: { part: Part; onClose: () => void; onConfirm: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -286,10 +249,7 @@ function DeleteModal({ part, onClose, onConfirm }: { part: Part; onClose: () => 
       </div>
     </div>
   );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
+}// Main page component handling state and layout
 export default function PartsManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
@@ -303,9 +263,7 @@ export default function PartsManagement() {
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
-  };
-
-  // ── Derived filtered list ─────────────────────────────────────────────────
+  };// Computes the filtered list based on user search and filters
   const filtered = useMemo(() => {
     return parts.filter((p) => {
       const q = search.toLowerCase();
@@ -324,14 +282,10 @@ export default function PartsManagement() {
 
       return matchSearch && matchCat && matchStatus;
     });
-  }, [parts, search, categoryFilter, stockFilter]);
-
-  // ── Stat helpers ──────────────────────────────────────────────────────────
+  }, [parts, search, categoryFilter, stockFilter]);// Computes summary statistics for the top dashboard cards
   const totalStock   = useMemo(() => parts.reduce((s, p) => s + p.stock, 0), [parts]);
   const lowAlerts    = useMemo(() => parts.filter((p) => deriveStatus(p.stock) !== "OK").length, [parts]);
-  const inventoryVal = useMemo(() => parts.reduce((s, p) => s + p.stock * p.price, 0), [parts]);
-
-  // ── CRUD handlers ─────────────────────────────────────────────────────────
+  const inventoryVal = useMemo(() => parts.reduce((s, p) => s + p.stock * p.price, 0), [parts]);// Handlers for creating, reading, updating, and deleting entries
   const handleAdd = (data: PartFormData) => {
     const newPart: Part = {
       id:       ++nextId,
@@ -396,7 +350,7 @@ export default function PartsManagement() {
         </div>
 
         <nav className="flex-1 px-6 py-8 space-y-3">
-          {NAV_ITEMS.map((item, i) => (
+          {NAV_ITEMS.map((item) => (
             <NavItem 
               key={item.label} 
               icon={item.icon} 

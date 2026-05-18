@@ -21,7 +21,8 @@ import {
   ChevronRight,
   FileText,
   UserPlus,
-  Users
+  Users,
+  ShieldCheck
 } from 'lucide-react';
 import authService from '../../services/authService';
 
@@ -131,6 +132,7 @@ const AdminDashboard: FC = () => {
           <NavItem icon={LayoutDashboard} label="Dashboard" active onClick={() => navigate('/admin-dashboard')} />
           <NavItem icon={Package} label="Inventory" onClick={() => navigate('/inventory')} />
           <NavItem icon={Users} label="Vendors" onClick={() => navigate('/vendors')} />
+          <NavItem icon={ShieldCheck} label="Staff" onClick={() => navigate('/staff-management')} />
           <NavItem icon={Wrench} label="Work Orders" />
           <NavItem icon={Truck} label="Logistics" />
         </nav>
@@ -271,7 +273,9 @@ const AdminDashboard: FC = () => {
                 <div className="space-y-4">
                   <QuickActionItem icon={Plus} title="Add New Part" subtitle="UPDATE INVENTORY" />
                   <QuickActionItem icon={FileText} title="Create Purchase Invoice" subtitle="ACCOUNTS PAYABLE" />
-                  <QuickActionItem icon={UserPlus} title="Register Staff" subtitle="TEAM MANAGEMENT" />
+                  <div onClick={() => navigate('/staff-management')}>
+                    <QuickActionItem icon={UserPlus} title="Register Staff" subtitle="TEAM MANAGEMENT" />
+                  </div>
                 </div>
                 
                 <div className="bg-[#1A1A1A] rounded-4xl p-8 text-neutral relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform duration-200">

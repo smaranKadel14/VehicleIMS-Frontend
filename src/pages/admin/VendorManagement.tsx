@@ -16,12 +16,9 @@ import {
   Users,
   ShieldCheck,
   Star,
-  Activity,
+  Activity
 } from 'lucide-react';
-import authService from "../../services/authService";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
+import authService from "../../services/authService";// Data types and interface definitions
 type VendorStatus = "ACTIVE" | "INACTIVE";
 type FilterTab    = "All" | "Active" | "Inactive";
 
@@ -47,10 +44,7 @@ interface VendorFormData {
   rating:   string;
 }
 
-type ModalState = null | "add" | { edit: Vendor } | { delete: Vendor };
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
+type ModalState = null | "add" | { edit: Vendor } | { delete: Vendor };// Initial data and configuration constants
 const INITIAL_VENDORS: Vendor[] = [
   { id: 1, name: "Axel & Co. Logistics",    initials: "AX", vendorId: "VND-4822", contact: "Marcus Sterling", email: "m.sterling@axelco.de",    rating: 4.9, status: "ACTIVE",   category: "Logistics"    },
   { id: 2, name: "Nordic Transmission",     initials: "NT", vendorId: "VND-9901", contact: "Elena Varkas",    email: "evarkas@nordic.se",         rating: 4.7, status: "ACTIVE",   category: "Transmission" },
@@ -79,16 +73,14 @@ const NAV_ITEMS = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
   { icon: Package, label: "Inventory", path: "/inventory" },
   { icon: Users, label: "Vendors", active: true, path: "/vendors" },
+  { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
   { icon: Wrench, label: "Work Orders", path: "#" },
   { icon: Truck, label: "Logistics", path: "#" },
 ];
 
 const EMPTY_FORM: VendorFormData = {
   name: "", contact: "", email: "", vendorId: "", category: "General", status: "ACTIVE", rating: "5.0",
-};
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
+};// Reusable UI components used within this page
 const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
   <button 
     onClick={onClick}
@@ -139,7 +131,7 @@ function StatusBadge({ status }: { status: VendorStatus }) {
   );
 }
 
-// ─── Vendor Modal (Add / Edit) ────────────────────────────────────────────────
+// Vendor Modal (Add / Edit)
 
 function VendorModal({
   vendor,
@@ -250,10 +242,7 @@ function VendorModal({
       </div>
     </div>
   );
-}
-
-// ─── Delete Modal ─────────────────────────────────────────────────────────────
-
+}// Modal to confirm the deletion of an entry
 function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: () => void; onConfirm: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -272,10 +261,7 @@ function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: 
       </div>
     </div>
   );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
+}// Main page component handling state and layout
 export default function VendorManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
@@ -289,9 +275,7 @@ export default function VendorManagement() {
   const [search, setSearch]         = useState("");
   const [modal, setModal]           = useState<ModalState>(null);
   const [menuOpen, setMenuOpen]     = useState<number | null>(null);
-  const [showInsights, setShowInsights] = useState(true);
-
-  // ── Derived ───────────────────────────────────────────────────────────────
+  const [showInsights, setShowInsights] = useState(true);// Derived state calculations like filtering and sorting
   const filtered = useMemo(() => {
     return vendors.filter((v) => {
       const matchFilter =
@@ -312,9 +296,7 @@ export default function VendorManagement() {
   const avgRating   = useMemo(() => {
     if (!vendors.length) return 0;
     return vendors.reduce((s, v) => s + v.rating, 0) / vendors.length;
-  }, [vendors]);
-
-  // ── CRUD ──────────────────────────────────────────────────────────────────
+  }, [vendors]);// Handlers for creating, reading, updating, and deleting entries
   const handleAdd = (data: VendorFormData) => {
     const newVendor: Vendor = {
       id:       ++nextVendorId,

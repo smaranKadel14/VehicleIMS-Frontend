@@ -9,6 +9,7 @@ import InventoryManagement from "../pages/admin/InventoryManagement";
 import ProfilePage from "../pages/customer/ProfilePage";
 import CustomerDashboard from "../pages/customer/Dashboard";
 import AdminDashboard from "../pages/admin/AdminDashboard";
+import StaffManagement from "../pages/admin/StaffManagement";
 import ProtectedRoute from "./ProtectedRoute";
 
 function AppRoutes() {
@@ -66,6 +67,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['Admin']}>
             <AdminDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/staff-management" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin']}>
+            <StaffManagement />
           </ProtectedRoute>
         } 
       />

@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { FC } from 'react';
 import { 
   LayoutDashboard, 
@@ -13,16 +13,13 @@ import {
   Bell, 
   Clock, 
   CreditCard, 
-  Zap, 
-  Calendar as CalendarIcon, 
+  Zap,
   ShoppingBag, 
   Fuel, 
   Activity, 
   Gauge,
-  ChevronRight,
   Shield,
   Info,
-  MoreVertical,
   ArrowUpRight,
   MapPin,
   RefreshCcw
@@ -55,7 +52,8 @@ const CustomerDashboard: FC = () => {
       setTransactions(transactionsData);
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
-      setError("Failed to connect to the backend server. Please check if the API is running.");
+      const message = err.response?.data?.message || err.message || "Unknown error";
+      setError(`Failed to connect to the backend server. Technical details: ${message}`);
     } finally {
       setLoading(false);
     }

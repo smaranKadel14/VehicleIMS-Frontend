@@ -1,9 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import authService from "../../services/authService";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
+import authService from "../../services/authService";// Data types and interface definitions
 type CustomerStatus = "Active" | "Inactive";
 type SearchType     = "All" | "Name" | "Phone" | "Vehicle" | "ID";
 type SortOption     = "Total Spend" | "Last Visit" | "Name" | "Vehicles";
@@ -30,10 +27,7 @@ interface CustomerFormData {
 }
 
 type DrawerState  = Customer | null;
-type ModalState   = null | "add" | { edit: Customer } | { delete: Customer };
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
+type ModalState   = null | "add" | { edit: Customer } | { delete: Customer };// Initial data and configuration constants
 const INITIAL_CUSTOMERS: Customer[] = [
   { id: 1, name: "Jonathan Kalu",   phone: "+1 (555) 012-9934", initials: "JK", vehicles: 4,  revenue: 12450.0,  lastVisit: "Oct 12, 2023", status: "Active",   vehiclePlates: ["KAL-1234", "KAL-5678"] },
   { id: 2, name: "Sarah Richards",  phone: "+1 (555) 014-8821", initials: "SR", vehicles: 1,  revenue: 3200.5,   lastVisit: "Nov 02, 2023", status: "Active",   vehiclePlates: ["RIC-4411"] },
@@ -62,10 +56,7 @@ const NAV_ITEMS = [
   { icon: "📊", label: "Analytics" },
 ];
 
-const EMPTY_FORM: CustomerFormData = { name: "", phone: "", status: "Active", plate1: "", plate2: "" };
-
-// ─── Add / Edit Customer Modal ────────────────────────────────────────────────
-
+const EMPTY_FORM: CustomerFormData = { name: "", phone: "", status: "Active", plate1: "", plate2: "" };// Modal for creating new customers or modifying existing ones
 function CustomerModal({
   customer,
   onClose,
@@ -161,10 +152,7 @@ function CustomerModal({
       </div>
     </div>
   );
-}
-
-// ─── Delete Modal ─────────────────────────────────────────────────────────────
-
+}// Modal to confirm the deletion of an entry
 function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onClose: () => void; onConfirm: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -181,10 +169,7 @@ function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onC
       </div>
     </div>
   );
-}
-
-// ─── Customer Detail Drawer ───────────────────────────────────────────────────
-
+}// Side drawer showing in-depth customer information
 function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Customer; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
   return (
     <>
@@ -250,10 +235,7 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
       </div>
     </>
   );
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
-
+}// Main page component handling state and layout
 export default function CustomerSearch() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
@@ -268,9 +250,7 @@ export default function CustomerSearch() {
   const [statusFilter, setStatusFilter]   = useState<StatusFilter>("All Active");
   const [sortBy, setSortBy]               = useState<SortOption>("Total Spend");
   const [drawer, setDrawer]               = useState<DrawerState>(null);
-  const [modal, setModal]                 = useState<ModalState>(null);
-
-  // ── Derived ───────────────────────────────────────────────────────────────
+  const [modal, setModal]                 = useState<ModalState>(null);// Derived state calculations like filtering and sorting
   const filtered = useMemo(() => {
     return customers
       .filter((c) => {
@@ -297,9 +277,7 @@ export default function CustomerSearch() {
         if (sortBy === "Name")        return a.name.localeCompare(b.name);
         return 0;
       });
-  }, [customers, search, searchType, statusFilter, sortBy]);
-
-  // ── CRUD ──────────────────────────────────────────────────────────────────
+  }, [customers, search, searchType, statusFilter, sortBy]);// Handlers for creating, reading, updating, and deleting entries
   const handleAdd = (data: CustomerFormData) => {
     const plates = [data.plate1.trim(), data.plate2.trim()].filter(Boolean);
     const newCustomer: Customer = {
