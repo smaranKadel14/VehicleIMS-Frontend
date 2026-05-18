@@ -31,10 +31,11 @@ import authService from '../../services/authService';
 import reportService from '../../services/reportService';
 import type { FinancialReportResponse } from '../../services/reportService';
 import partService from '../../services/partService';
+import type { PartResponse } from '../../services/partService';
 import purchaseService from '../../services/purchaseService';
 
 // Helper Components
-const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
+const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: FC<{ className?: string }>, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
   <button 
     onClick={onClick}
     className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${delay} ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
@@ -44,14 +45,14 @@ const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { i
   </button>
 );
 
-const HeaderIcon = ({ icon: Icon, badge = false }: { icon: any, badge?: boolean }) => (
-  <button className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group">
+const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: FC<{ className?: string }>, badge?: boolean, onClick?: () => void }) => (
+  <button onClick={onClick} className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group">
     <Icon className="w-5 h-5 group-active:scale-90 transition-transform" />
     {badge && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>}
   </button>
 );
 
-const AdminStatCard = ({ label, value, decimal, trend, icon: Icon, delay = "", variant = 'white' }: { label: string, value: string, decimal?: string, trend: string, icon: any, delay?: string, variant?: 'white' | 'gray' | 'black' }) => (
+const AdminStatCard = ({ label, value, decimal, trend, icon: Icon, delay = "", variant = 'white' }: { label: string, value: string, decimal?: string, trend: string, icon: FC<{ className?: string }>, delay?: string, variant?: 'white' | 'gray' | 'black' }) => (
   <div className={`rounded-3xl p-6 transition-all duration-100 hover:duration-200 ease-out hover:shadow-xl hover:-translate-y-1 ${delay} flex flex-col justify-between min-h-[190px] cursor-default ${
     variant === 'black' ? 'bg-black text-neutral' : 
     variant === 'gray' ? 'bg-[#D4D4D4] text-primary' : 
@@ -74,7 +75,7 @@ const AdminStatCard = ({ label, value, decimal, trend, icon: Icon, delay = "", v
   </div>
 );
 
-const QuickActionItem = ({ icon: Icon, title, subtitle }: { icon: any, title: string, subtitle: string }) => (
+const QuickActionItem = ({ icon: Icon, title, subtitle }: { icon: FC<{ className?: string }>, title: string, subtitle: string }) => (
   <div className="bg-white rounded-3xl p-6 border border-secondary/20 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-150 ease-out cursor-pointer group flex items-center justify-between">
     <div className="flex items-center gap-5">
       <div className="w-12 h-12 bg-secondary/10 rounded-2xl flex items-center justify-center group-hover:bg-black group-hover:text-neutral transition-all duration-200">
@@ -124,6 +125,10 @@ const AdminDashboard: FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Dynamic system notifications & alerts
+  const [showNotificationList, setShowNotificationList] = useState(false);
+  const [lowStockList, setLowStockList] = useState<PartResponse[]>([]);
+
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
@@ -137,6 +142,7 @@ const AdminDashboard: FC = () => {
       const parts = await partService.getAll();
       const lowStockParts = parts.filter(p => p.stockQuantity < 10);
       setStockAlerts(lowStockParts.length);
+      setLowStockList(lowStockParts);
       
       const lowStockNames = lowStockParts.slice(0, 2).map(p => p.name).join(", ");
       setCriticalItems(lowStockParts.length > 0 
@@ -150,9 +156,10 @@ const AdminDashboard: FC = () => {
       setPurchaseCost(totalCost);
       setPendingPurchasesCount(purchases.length);
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error fetching admin dashboard data:", err);
-      const msg = err.response?.data?.message || err.message || "Unknown error";
+      const errorObj = err as { response?: { data?: { message?: string } }; message?: string };
+      const msg = errorObj.response?.data?.message || errorObj.message || "Unknown error";
       setError(`Failed to fetch database records: ${msg}`);
     } finally {
       setLoading(false);
@@ -160,7 +167,9 @@ const AdminDashboard: FC = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportType]);
 
   const handleLogout = () => {
@@ -272,9 +281,54 @@ const AdminDashboard: FC = () => {
             </nav>
 
             <div className="flex items-center gap-6 pl-10 border-l border-secondary/20">
-              <div className="flex gap-2">
-                <HeaderIcon icon={Bell} badge />
+              <div className="flex gap-2 relative">
+                <HeaderIcon icon={Bell} badge={stockAlerts > 0} onClick={() => setShowNotificationList(!showNotificationList)} />
                 <HeaderIcon icon={Settings} />
+
+                {/* ── Dynamic System Notification List Dropdown ── */}
+                {showNotificationList && (
+                  <div className="absolute right-0 top-14 w-[380px] bg-white rounded-3xl border border-secondary/20 shadow-2xl p-6 z-50 animate-fade-in">
+                    <h4 className="font-heading font-extrabold text-lg text-primary border-b border-secondary/20 pb-3 flex justify-between items-center">
+                      <span>🔔 System Notifications</span>
+                      {stockAlerts > 0 && (
+                        <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">{stockAlerts} Alerts</span>
+                      )}
+                    </h4>
+
+                    <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                      {stockAlerts === 0 ? (
+                        <div className="py-6 text-center">
+                          <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                            🟢 All inventory levels are nominal
+                          </p>
+                        </div>
+                      ) : (
+                        lowStockList.map((part) => (
+                          <div key={part.id} className="p-3 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-1">
+                            <div className="flex justify-between items-start">
+                              <span className="text-xs font-black text-red-950 uppercase tracking-tight leading-snug">{part.name}</span>
+                              <span className="text-[10px] bg-red-200 text-red-950 px-2.5 py-0.5 rounded-lg font-mono font-bold shrink-0">Qty: {part.stockQuantity}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[9px] text-red-700 font-bold uppercase tracking-wider mt-1">
+                              <span>SKU: {part.sku}</span>
+                              <span>VEND: {part.vendorName}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+
+                    <button 
+                      onClick={() => {
+                        setShowNotificationList(false);
+                        navigate('/inventory');
+                      }}
+                      className="w-full mt-4 bg-black text-white text-[10px] font-black uppercase tracking-widest py-3.5 rounded-xl hover:bg-neutral transition-all text-center block"
+                    >
+                      Manage Inventory Ledger
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-4 ml-2 group cursor-pointer">
                 <div className="text-right">

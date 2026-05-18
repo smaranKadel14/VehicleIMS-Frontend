@@ -14,6 +14,14 @@ import partService from '../../services/partService';
 import customerService from '../../services/customerService';
 import salesService from '../../services/salesService';
 import reportService from '../../services/reportService';
+import type { 
+  CustomerReportResponse, 
+  HighSpenderCustomerDto, 
+  RegularCustomerDto, 
+  PendingCreditCustomerDto 
+} from '../../services/reportService';
+import type { PartResponse } from '../../services/partService';
+import type { CustomerResponse } from '../../services/customerService';
 
 // Types & Interfaces
 interface ActivityLog {
@@ -33,39 +41,6 @@ interface LookupItem {
   subtitle: string;
   value: string;
 }
-
-const INITIAL_ACTIVITIES: ActivityLog[] = [
-  {
-    id: "act-1",
-    customerName: "Elena Rossi",
-    actionText: "purchased",
-    targetObject: "Clutch Assembly Kit",
-    subtext: "Invoice #INV-92831 • Amount: RS 420.00",
-    badges: ["PAID", "IN STOCK"],
-    time: "2 MIN AGO",
-    type: "purchase"
-  },
-  {
-    id: "act-2",
-    customerName: "Marcus Chen",
-    actionText: "requested a",
-    targetObject: "Core Refund",
-    subtext: "Order #ORD-112 • Part: Turbocharger Core",
-    badges: ["PENDING REVIEW"],
-    time: "14 MIN AGO",
-    type: "refund"
-  },
-  {
-    id: "act-3",
-    customerName: "Sarah Jenkins",
-    actionText: "booked",
-    targetObject: "Brake Inspection",
-    subtext: "Scheduled for Tomorrow • 09:30 AM",
-    badges: [],
-    time: "45 MIN AGO",
-    type: "booking"
-  }
-];
 
 const LOOKUP_DATABASE: LookupItem[] = [
   { type: "Customer", title: "Elena Rossi", subtitle: "elena.rossi@gmail.com • +39 333 4455", value: "Customer: Elena Rossi" },
@@ -93,10 +68,10 @@ const StaffDashboard: FC = () => {
   // Primary States
   const [activeTab, setActiveTab] = useState<"Overview" | "Performance" | "Reports">("Overview");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activities, setActivities] = useState<ActivityLog[]>(INITIAL_ACTIVITIES);
-  const [customersServed, setCustomersServed] = useState(42);
-  const [todaySales, setTodaySales] = useState(14280.50);
-  const [pendingCredits] = useState(18);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [customersServed, setCustomersServed] = useState(0);
+  const [todaySales, setTodaySales] = useState(0);
+  const [pendingCreditsCount, setPendingCreditsCount] = useState(0);
 
   // Modals & Interactivity States
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
@@ -106,12 +81,39 @@ const StaffDashboard: FC = () => {
   const [notification, setNotification] = useState<string | null>(null);
 
   // DB integration states
-  const [dbParts, setDbParts] = useState<any[]>([]);
-  const [dbCustomers, setDbCustomers] = useState<any[]>([]);
+  const [dbParts, setDbParts] = useState<PartResponse[]>([]);
+  const [dbCustomers, setDbCustomers] = useState<CustomerResponse[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
   const [selectedPartId, setSelectedPartId] = useState<string>("");
-  const [customerReport, setCustomerReport] = useState<any>(null);
+  const [customerReport, setCustomerReport] = useState<CustomerReportResponse | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
+
+  const refreshDashboardStats = async () => {
+    try {
+      const daily = await reportService.getFinancialReport("daily");
+      setTodaySales(daily.totalRevenue);
+      setCustomersServed(daily.totalSalesCount);
+
+      const invoices = await salesService.getAll();
+      const mapped = invoices.slice(0, 5).map(inv => ({
+        id: `act-${inv.id}`,
+        customerName: inv.customerName,
+        actionText: "purchased",
+        targetObject: inv.items.map(item => item.partName).join(", ") || "Parts",
+        subtext: `Invoice #${inv.invoiceNumber} • Amount: RS ${inv.finalTotal.toFixed(2)}`,
+        badges: [inv.isPaid ? "PAID" : "UNPAID", "DATABASE SAVED"],
+        time: new Date(inv.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        type: "purchase" as const
+      }));
+      setActivities(mapped);
+
+      const rep = await reportService.getCustomerReport();
+      setCustomerReport(rep);
+      setPendingCreditsCount(rep.pendingCredits ? rep.pendingCredits.length : 0);
+    } catch (err) {
+      console.error("Failed to refresh dashboard statistics:", err);
+    }
+  };
 
   useEffect(() => {
     partService.getAll()
@@ -128,11 +130,9 @@ const StaffDashboard: FC = () => {
       })
       .catch(err => console.error("Error loading customers:", err));
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoadingReport(true);
-    reportService.getCustomerReport()
-      .then(res => setCustomerReport(res))
-      .catch(err => console.error("Error loading customer reports:", err))
-      .finally(() => setLoadingReport(false));
+    refreshDashboardStats().finally(() => setLoadingReport(false));
   }, []);
 
   // Form states for Sell Parts POS
@@ -205,27 +205,13 @@ const StaffDashboard: FC = () => {
         ]
       });
 
-      // Add to sales metric
-      setTodaySales(prev => prev + finalAmount);
-
-      // Add to activity list
-      const newLog: ActivityLog = {
-        id: `act-${Date.now()}`,
-        customerName: customer.fullName,
-        actionText: "purchased",
-        targetObject: part.name,
-        subtext: `Invoice #INV-${Math.floor(10000 + Math.random() * 90000)} • Amount: RS ${finalAmount.toFixed(2)}`,
-        badges: ["PAID", "DATABASE SAVED"],
-        time: "JUST NOW",
-        type: "purchase"
-      };
-
-      setActivities(prev => [newLog, ...prev]);
       setIsSellModalOpen(false);
+      await refreshDashboardStats();
       showNotification(`Invoice processed transactionally! RS ${finalAmount.toFixed(2)} added.`);
-    } catch (err: any) {
-      console.error("POS transaction failed:", err);
-      showNotification(err?.response?.data?.message || "POS Transaction failed. Out of stock?");
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } } };
+      console.error("POS transaction failed:", error);
+      showNotification(error?.response?.data?.message || "POS Transaction failed. Out of stock?");
     }
   };
 
@@ -280,9 +266,10 @@ const StaffDashboard: FC = () => {
         email: "",
         address: ""
       });
-    } catch (err: any) {
-      console.error("CRM customer registration failed:", err);
-      showNotification(err?.response?.data?.message || "Customer registration failed.");
+    } catch (err) {
+      const error = err as { response?: { data?: { message?: string } } };
+      console.error("CRM customer registration failed:", error);
+      showNotification(error?.response?.data?.message || "Customer registration failed.");
     }
   };
 
@@ -488,7 +475,7 @@ const StaffDashboard: FC = () => {
               <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 12, padding: "20px 24px", boxShadow: "0 4px 12px rgba(0,0,0,0.02)" }}>
                 <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Pending Credits</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 12 }}>
-                  <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px" }}>{pendingCredits}</span>
+                  <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px" }}>{pendingCreditsCount}</span>
                   <span style={{ fontSize: 12, fontWeight: 600, color: "#6B7280" }}>Awaiting Auth</span>
                 </div>
               </div>
@@ -810,8 +797,8 @@ const StaffDashboard: FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {customerReport?.highSpenders?.length > 0 ? (
-                              customerReport.highSpenders.map((cust: any) => (
+                            {customerReport?.highSpenders && customerReport.highSpenders.length > 0 ? (
+                              customerReport.highSpenders.map((cust: HighSpenderCustomerDto) => (
                                 <tr key={cust.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                                   <td style={{ padding: "12px 12px", fontWeight: 700 }}>{cust.name}</td>
                                   <td style={{ padding: "12px 12px", color: "#6B7280" }}>{cust.email}</td>
@@ -846,8 +833,8 @@ const StaffDashboard: FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {customerReport?.regulars?.length > 0 ? (
-                              customerReport.regulars.map((cust: any) => (
+                            {customerReport?.regulars && customerReport.regulars.length > 0 ? (
+                              customerReport.regulars.map((cust: RegularCustomerDto) => (
                                 <tr key={cust.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                                   <td style={{ padding: "12px 12px", fontWeight: 700 }}>{cust.name}</td>
                                   <td style={{ padding: "12px 12px", color: "#6B7280" }}>{cust.email}</td>
@@ -882,8 +869,8 @@ const StaffDashboard: FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {customerReport?.pendingCredits?.length > 0 ? (
-                              customerReport.pendingCredits.map((cust: any) => (
+                            {customerReport?.pendingCredits && customerReport.pendingCredits.length > 0 ? (
+                              customerReport.pendingCredits.map((cust: PendingCreditCustomerDto) => (
                                 <tr key={cust.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                                   <td style={{ padding: "12px 12px", fontWeight: 700 }}>{cust.name}</td>
                                   <td style={{ padding: "12px 12px", color: "#6B7280" }}>{cust.email}</td>

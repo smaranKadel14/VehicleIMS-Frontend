@@ -14,6 +14,8 @@ interface Customer {
   id:            number;
   name:          string;
   phone:         string;
+  email:         string;
+  address:       string;
   initials:      string;
   vehicles:      number;
   revenue:       number;
@@ -263,6 +265,7 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     customerService.getHistory(customer.id)
       .then(res => setHistory(res))
@@ -320,6 +323,42 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
           ))}
         </div>
 
+        {/* Sales & Service History */}
+        {!loading && history && (
+          <div style={{ marginBottom: 24, borderTop: "1px solid #f3f4f6", paddingTop: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", letterSpacing: "0.06em", marginBottom: 10 }}>RECENT INVOICES</div>
+            {history.salesInvoices.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>No invoices recorded.</p>
+            ) : (
+              history.salesInvoices.slice(0, 3).map((inv) => (
+                <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: "#f9fafb", borderRadius: 8, marginBottom: 6 }}>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{inv.invoiceNumber}</span>
+                    <span style={{ fontSize: 10, color: "#9ca3af", display: "block" }}>{new Date(inv.date).toLocaleDateString()}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800 }}>RS {inv.totalAmount.toLocaleString()}</span>
+                </div>
+              ))
+            )}
+
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#6b7280", letterSpacing: "0.06em", marginTop: 20, marginBottom: 10 }}>SERVICE APPOINTMENTS</div>
+            {history.serviceHistory.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>No service appointments.</p>
+            ) : (
+              history.serviceHistory.slice(0, 3).map((srv) => (
+                <div key={srv.id} style={{ padding: "8px 12px", background: "#f9fafb", borderRadius: 8, marginBottom: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>{srv.vehicleName} ({srv.licensePlate})</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: srv.status === "Completed" ? "#16a34a" : "#ca8a04" }}>{srv.status}</span>
+                  </div>
+                  <span style={{ fontSize: 10, color: "#9ca3af" }}>{new Date(srv.appointmentDate).toLocaleDateString()}</span>
+                  {srv.notes && <span style={{ fontSize: 11, color: "#4b5563", display: "block", marginTop: 4, fontStyle: "italic" }}>"{srv.notes}"</span>}
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
         {/* Actions */}
         <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
           <button style={{ flex: 1, padding: 11, border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>View History</button>
@@ -344,25 +383,22 @@ export default function CustomerSearch() {
 
   const isStaff = user?.roles?.includes('Staff');
 
-  const filteredNavItems = useMemo(() => {
-    if (isStaff) {
-      return [
+  const filteredNavItems = isStaff
+    ? [
         { icon: "⊞", label: "Dashboard", path: "/staff-dashboard" },
         { icon: "🔧", label: "Work Orders", path: "#" },
         { icon: "🚚", label: "Logistics", path: "#" },
         { icon: "👥", label: "Customers", active: true, path: "/customers" },
         { icon: "📊", label: "Analytics", path: "#" },
+      ]
+    : [
+        { icon: "⊞", label: "Dashboard", path: "/admin-dashboard" },
+        { icon: "📦", label: "Inventory", path: "/inventory" },
+        { icon: "👥", label: "Vendors", path: "/vendors" },
+        { icon: "🛡️", label: "Staff", path: "/staff-management" },
+        { icon: "🔧", label: "Work Orders", path: "#" },
+        { icon: "🚚", label: "Logistics", path: "#" },
       ];
-    }
-    return [
-      { icon: "⊞", label: "Dashboard", path: "/admin-dashboard" },
-      { icon: "📦", label: "Inventory", path: "/inventory" },
-      { icon: "👥", label: "Vendors", path: "/vendors" },
-      { icon: "🛡️", label: "Staff", path: "/staff-management" },
-      { icon: "🔧", label: "Work Orders", path: "#" },
-      { icon: "🚚", label: "Logistics", path: "#" },
-    ];
-  }, [isStaff]);
 
   const handleLogout = () => {
     authService.logout();
@@ -388,6 +424,8 @@ export default function CustomerSearch() {
         id: c.id,
         name: c.fullName,
         phone: c.phone || "N/A",
+        email: c.email || "No Email",
+        address: c.address || "No Address",
         initials: makeInitials(c.fullName),
         vehicles: c.vehicles ? c.vehicles.length : 0,
         revenue: 0,
@@ -403,7 +441,9 @@ export default function CustomerSearch() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCustomers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, searchType, statusFilter, sortBy]);
 
   const filtered = useMemo(() => {
@@ -640,7 +680,7 @@ export default function CustomerSearch() {
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
                 <thead>
                   <tr style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    {["CUSTOMER DETAILS", "VEHICLES", "TOTAL REVENUE", "LAST VISIT", "ACTIONS"].map((h) => (
+                    {["CUSTOMER DETAILS", "REGISTERED FLEET", "EMAIL ADDRESS", "HOME ADDRESS", "ACTIONS"].map((h) => (
                       <th key={h} style={{ padding: "14px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#9ca3af", letterSpacing: "0.08em", whiteSpace: "nowrap" }}>{h}</th>
                     ))}
                   </tr>
@@ -676,12 +716,14 @@ export default function CustomerSearch() {
                         <span style={{ background: "#f3f4f6", padding: "4px 12px", borderRadius: 20, fontSize: 12, fontWeight: 700 }}>
                           {c.vehicles} {c.vehicles === 1 ? "UNIT" : "UNITS"}
                         </span>
+                        {c.vehiclePlates.length > 0 && (
+                          <div style={{ fontSize: 11, color: "#9ca3af", fontFamily: "monospace", marginTop: 6 }}>
+                            {c.vehiclePlates.join(", ")}
+                          </div>
+                        )}
                       </td>
-                      <td style={{ padding: "18px 20px" }}>
-                        <div style={{ fontWeight: 800, fontSize: 16 }}>RS {c.revenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
-                        <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, marginTop: 2, letterSpacing: "0.04em" }}>LIFETIME VALUE</div>
-                      </td>
-                      <td style={{ padding: "18px 20px", fontSize: 14, color: "#374151" }}>{c.lastVisit}</td>
+                      <td style={{ padding: "18px 20px", fontSize: 13, color: "#374151" }}>{c.email}</td>
+                      <td style={{ padding: "18px 20px", fontSize: 13, color: "#6b7280" }}>{c.address}</td>
                       <td style={{ padding: "18px 20px" }}>
                         <div style={{ display: "flex", gap: 8 }}>
                           <button

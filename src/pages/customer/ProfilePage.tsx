@@ -1,7 +1,9 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import type { ChangeEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../services/authService";
+import customerService from "../../services/customerService";
+import type { VehicleResponse } from "../../services/customerService";
 import {
   Bell,
   LayoutDashboard,
@@ -13,7 +15,6 @@ import {
   History,
   TriangleAlert,
   Upload,
-  CircleHelp,
   ArrowLeft,
 } from "lucide-react";
 
@@ -107,6 +108,12 @@ export default function ProfilePage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Live database vehicles and loader states
+  const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
   const initials = useMemo(() => {
     return profile.fullName
       .split(" ")
@@ -114,6 +121,38 @@ export default function ProfilePage() {
       .map((word) => word[0]?.toUpperCase() ?? "")
       .join("");
   }, [profile.fullName]);
+
+  useEffect(() => {
+    const user = authService.getCurrentUser();
+    if (!user?.userName) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setLoading(true);
+    customerService.search(user.userName)
+      .then(res => {
+        if (res && res.length > 0) {
+          const matchedCust = res[0];
+          const mappedProfile: ProfileData = {
+            fullName: `${matchedCust.firstName} ${matchedCust.lastName}`,
+            email: matchedCust.email,
+            phone: matchedCust.phone,
+            department: matchedCust.address || "Kathmandu, Nepal",
+            role: "Verified Client",
+            portalId: `EC-${matchedCust.id}-CUST`,
+            tierStatus: "Customer Account",
+            lastActive: "Active Now"
+          };
+          setProfile(mappedProfile);
+          setDraft(mappedProfile);
+          setVehicles(matchedCust.vehicles || []);
+        }
+      })
+      .catch(err => {
+        console.error("Failed to load customer profile:", err);
+        setErrorMsg("Unable to retrieve database records for your maintenance profile.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -136,7 +175,18 @@ export default function ProfilePage() {
   const saveChanges = () => {
     setProfile(draft);
     setIsEditing(false);
+    setSuccessMsg("Details cached locally! For official ledger compliance updates, please contact your EngineCore service adviser.");
+    setTimeout(() => setSuccessMsg(null), 8000);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f5f5f3] flex flex-col items-center justify-center gap-4">
+        <div className="w-12 h-12 rounded-full border-4 border-black/10 border-t-black animate-spin" />
+        <p className="text-xs uppercase tracking-[0.2em] font-black text-tertiary">Connecting to enginecore database...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f5f5f3] text-primary">
@@ -232,6 +282,19 @@ export default function ProfilePage() {
                   Manage your industrial portal credentials and preferences.
                 </p>
               </div>
+
+              {successMsg && (
+                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
+                  <span>✅</span>
+                  <span>{successMsg}</span>
+                </div>
+              )}
+              {errorMsg && (
+                <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3 text-rose-800 text-xs font-semibold uppercase tracking-wider">
+                  <span>⚠️</span>
+                  <span>{errorMsg}</span>
+                </div>
+              )}
 
               <div className="grid gap-6 xl:grid-cols-12">
                 <div className="space-y-6 xl:col-span-4">
@@ -421,13 +484,33 @@ export default function ProfilePage() {
                     </div>
                   </section>
 
-                  <section className="rounded-2xl border border-dashed border-secondary/70 bg-white/70 p-5">
-                    <div className="flex items-start gap-3">
-                      <CircleHelp className="mt-0.5 h-5 w-5 text-tertiary" />
-                      <p className="text-sm text-primary/70">
-                        Customer vehicle deatils
-                      </p>
-                    </div>
+                  <section className="card rounded-2xl bg-white p-6 sm:p-7 shadow-sm">
+                    <h3 className="text-lg font-heading font-extrabold text-primary mb-4 flex items-center gap-2">
+                      🚗 Registered Vehicles ({vehicles.length})
+                    </h3>
+                    
+                    {vehicles.length === 0 ? (
+                      <p className="text-sm text-tertiary italic">No registered assets found in your maintenance profile.</p>
+                    ) : (
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        {vehicles.map((veh) => (
+                          <div key={veh.id} className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start">
+                                <h4 className="font-extrabold text-base text-primary">{veh.make} {veh.model}</h4>
+                                <span className="rounded-md bg-black text-white px-2 py-0.5 text-[10px] font-mono tracking-tight">{veh.year}</span>
+                              </div>
+                              <p className="text-[10px] uppercase font-semibold text-tertiary tracking-[0.1em] mt-1.5 font-bold">LICENSE PLATE</p>
+                              <p className="text-sm font-mono font-bold text-primary bg-white/50 px-2.5 py-1 rounded-lg inline-block border border-secondary/10 mt-1">{veh.licensePlate}</p>
+                            </div>
+                            <div className="mt-3 pt-3 border-t border-secondary/20 flex justify-between items-center text-[10px] font-bold text-tertiary tracking-wider">
+                              <span>VIN</span>
+                              <span className="font-mono text-primary">{veh.vin}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </section>
                 </div>
               </div>
