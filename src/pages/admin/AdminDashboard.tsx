@@ -133,6 +133,7 @@ const AdminDashboard: FC = () => {
           <NavItem icon={Package} label="Inventory" onClick={() => navigate('/inventory')} />
           <NavItem icon={Users} label="Vendors" onClick={() => navigate('/vendors')} />
           <NavItem icon={ShieldCheck} label="Staff" onClick={() => navigate('/staff-management')} />
+          <NavItem icon={FileText} label="Purchases" onClick={() => navigate('/purchases')} />
           <NavItem icon={Wrench} label="Work Orders" />
           <NavItem icon={Truck} label="Logistics" />
         </nav>
@@ -220,9 +221,9 @@ const AdminDashboard: FC = () => {
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 pb-4">
               <AdminStatCard label="Total Sales" value="1,284" trend="+12.5% vs last month" icon={ShoppingBag} />
-              <AdminStatCard label="Monthly Revenue" value="$42,902" decimal=".00" trend="+8.2% vs last month" icon={CreditCard} />
-              <AdminStatCard label="Yearly Revenue" value="$512.4k" trend="+15% annual projection" icon={BarChart3} />
-              <AdminStatCard label="Purchase Cost" value="$12,450.00" trend="Processing 4 pending invoices" icon={FileText} variant="gray" />
+              <AdminStatCard label="Monthly Revenue" value="RS 42,902" decimal=".00" trend="+8.2% vs last month" icon={CreditCard} />
+              <AdminStatCard label="Yearly Revenue" value="RS 512.4k" trend="+15% annual projection" icon={BarChart3} />
+              <AdminStatCard label="Purchase Cost" value="RS 12,450.00" trend="Processing 4 pending invoices" icon={FileText} variant="gray" />
               <AdminStatCard label="Stock Alerts" value="18 Items" trend="Critical levels: Brake Pads, V8 Seals" icon={AlertCircle} variant="black" />
             </div>
 
@@ -272,7 +273,9 @@ const AdminDashboard: FC = () => {
                 <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary px-2">Quick Actions</h4>
                 <div className="space-y-4">
                   <QuickActionItem icon={Plus} title="Add New Part" subtitle="UPDATE INVENTORY" />
-                  <QuickActionItem icon={FileText} title="Create Purchase Invoice" subtitle="ACCOUNTS PAYABLE" />
+                  <div onClick={() => navigate('/purchases')}>
+                    <QuickActionItem icon={FileText} title="Create Purchase Invoice" subtitle="ACCOUNTS PAYABLE" />
+                  </div>
                   <div onClick={() => navigate('/staff-management')}>
                     <QuickActionItem icon={UserPlus} title="Register Staff" subtitle="TEAM MANAGEMENT" />
                   </div>
@@ -314,10 +317,10 @@ const AdminDashboard: FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-secondary/10">
-                    <ActivityRow id="#TRX-88219" entity="V8 Cylinder Gasket Set" sub="CLIENT: APEX RACING INTL" category="PERFORMANCE" time="Today, 02:14 PM" amount="$1,420.00" status="COMPLETED" />
-                    <ActivityRow id="#TRX-88218" entity="Bulk Order: Synthetic Oil 5W-30" sub="VENDOR: PETROGLOBAL SUPPLIERS" category="MAINTENANCE" time="Today, 11:05 AM" amount="$8,900.00" status="PENDING" />
-                    <ActivityRow id="#TRX-88217" entity="Carbon Fiber Spoiler Kit" sub="CLIENT: PRIVATE COLLECTOR" category="BODYWORK" time="Yesterday, 04:45 PM" amount="$2,100.00" status="COMPLETED" />
-                    <ActivityRow id="#TRX-88216" entity="Heavy Duty Brake Pads (Front)" sub="CLIENT: FLEET RENTAL GROUP" category="BRAKING" time="Yesterday, 09:20 AM" amount="$450.00" status="FLAGGED" />
+                    <ActivityRow id="#TRX-88219" entity="V8 Cylinder Gasket Set" sub="CLIENT: APEX RACING INTL" category="PERFORMANCE" time="Today, 02:14 PM" amount="RS 1,420.00" status="COMPLETED" />
+                    <ActivityRow id="#TRX-88218" entity="Bulk Order: Synthetic Oil 5W-30" sub="VENDOR: PETROGLOBAL SUPPLIERS" category="MAINTENANCE" time="Today, 11:05 AM" amount="RS 8,900.00" status="PENDING" />
+                    <ActivityRow id="#TRX-88217" entity="Carbon Fiber Spoiler Kit" sub="CLIENT: PRIVATE COLLECTOR" category="BODYWORK" time="Yesterday, 04:45 PM" amount="RS 2,100.00" status="COMPLETED" />
+                    <ActivityRow id="#TRX-88216" entity="Heavy Duty Brake Pads (Front)" sub="CLIENT: FLEET RENTAL GROUP" category="BRAKING" time="Yesterday, 09:20 AM" amount="RS 450.00" status="FLAGGED" />
                   </tbody>
                 </table>
               </div>

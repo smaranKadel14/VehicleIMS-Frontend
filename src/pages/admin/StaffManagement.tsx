@@ -19,7 +19,8 @@ import {
   Activity,
   Save,
   X,
-  IdCard
+  IdCard,
+  FileText
 } from 'lucide-react';
 import authService from '../../services/authService';
 // Data types and interface definitions
@@ -53,6 +54,7 @@ const NAV_ITEMS = [
   { icon: Package, label: "Inventory", path: "/inventory" },
   { icon: Users, label: "Vendors", path: "/vendors" },
   { icon: ShieldCheck, label: "Staff", active: true, path: "/staff-management" },
+  { icon: FileText, label: "Purchases", path: "/purchases" },
   { icon: Wrench, label: "Work Orders", path: "#" },
   { icon: Truck, label: "Logistics", path: "#" },
 ];

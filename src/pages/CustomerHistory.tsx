@@ -112,7 +112,7 @@ export default function CustomerHistory() {
 
   const goToPage = (p: number) => setCurrentPage(Math.max(1, Math.min(totalPages, p)));
 
-  const fmt = (n: number) => "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2 });
+  const fmt = (n: number) => "RS " + n.toLocaleString("en-US", { minimumFractionDigits: 2 });
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (

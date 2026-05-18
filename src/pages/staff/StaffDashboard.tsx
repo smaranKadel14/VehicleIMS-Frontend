@@ -36,7 +36,7 @@ const INITIAL_ACTIVITIES: ActivityLog[] = [
     customerName: "Elena Rossi",
     actionText: "purchased",
     targetObject: "Clutch Assembly Kit",
-    subtext: "Invoice #INV-92831 • Amount: $420.00",
+    subtext: "Invoice #INV-92831 • Amount: RS 420.00",
     badges: ["PAID", "IN STOCK"],
     time: "2 MIN AGO",
     type: "purchase"
@@ -76,7 +76,6 @@ const LOOKUP_DATABASE: LookupItem[] = [
 
 const NAV_ITEMS = [
   { icon: "⊞", label: "Dashboard", active: true },
-  { icon: "📦", label: "Inventory" },
   { icon: "🔧", label: "Work Orders" },
   { icon: "🚚", label: "Logistics" },
   { icon: "👥", label: "Customers" },
@@ -158,7 +157,7 @@ const StaffDashboard: FC = () => {
       customerName: posData.customerName,
       actionText: "purchased",
       targetObject: posData.partName,
-      subtext: `Invoice #INV-${Math.floor(10000 + Math.random() * 90000)} • Amount: $${finalAmount.toFixed(2)}`,
+      subtext: `Invoice #INV-${Math.floor(10000 + Math.random() * 90000)} • Amount: RS ${finalAmount.toFixed(2)}`,
       badges: ["PAID", "IN STOCK"],
       time: "JUST NOW",
       type: "purchase"
@@ -166,7 +165,7 @@ const StaffDashboard: FC = () => {
 
     setActivities(prev => [newLog, ...prev]);
     setIsSellModalOpen(false);
-    showNotification(`Invoice authorized! $${finalAmount.toFixed(2)} added to sales log.`);
+    showNotification(`Invoice authorized! RS ${finalAmount.toFixed(2)} added to sales log.`);
     
     // Reset POS form
     setPosData({
@@ -238,7 +237,6 @@ const StaffDashboard: FC = () => {
               onClick={() => {
                 if (label === "Dashboard") navigate("/staff-dashboard");
                 if (label === "Customers") navigate("/customers");
-                if (label === "Inventory") navigate("/inventory");
               }}
               style={{
                 display: "flex",
@@ -397,7 +395,7 @@ const StaffDashboard: FC = () => {
                 <p style={{ margin: 0, fontSize: 10.5, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Today's Sales</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginTop: 12 }}>
                   <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px" }}>
-                    ${todaySales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    RS {todaySales.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#10B981" }}>+12%</span>
                 </div>
@@ -713,9 +711,9 @@ const StaffDashboard: FC = () => {
                   }}
                   style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, background: "#FFFFFF", outline: "none" }}
                 >
-                  <option value="Clutch Assembly Kit">Clutch Assembly Kit ($420.00)</option>
-                  <option value="V6 Piston Kit">V6 Piston Kit ($280.00)</option>
-                  <option value="Heavy Duty Brake Pads">Heavy Duty Brake Pads ($120.00)</option>
+                  <option value="Clutch Assembly Kit">Clutch Assembly Kit (RS 420.00)</option>
+                  <option value="V6 Piston Kit">V6 Piston Kit (RS 280.00)</option>
+                  <option value="Heavy Duty Brake Pads">Heavy Duty Brake Pads (RS 120.00)</option>
                 </select>
               </div>
 
@@ -762,15 +760,15 @@ const StaffDashboard: FC = () => {
               <div style={{ padding: 16, background: "#F9FAFB", borderRadius: 10, marginTop: 8, fontSize: 13 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ color: "#6B7280" }}>Subtotal:</span>
-                  <span style={{ fontWeight: 700 }}>${(posData.price * posData.quantity).toFixed(2)}</span>
+                  <span style={{ fontWeight: 700 }}>RS {(posData.price * posData.quantity).toFixed(2)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ color: "#6B7280" }}>Discount Applied:</span>
-                  <span style={{ fontWeight: 700, color: "#EF4444" }}>-${((posData.price * posData.quantity) * (posData.discount / 100)).toFixed(2)}</span>
+                  <span style={{ fontWeight: 700, color: "#EF4444" }}>-RS {((posData.price * posData.quantity) * (posData.discount / 100)).toFixed(2)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #E5E7EB", paddingTop: 8, fontSize: 14, fontWeight: 800 }}>
                   <span>Total Amount:</span>
-                  <span>${(posData.price * posData.quantity * (1 - posData.discount / 100)).toFixed(2)}</span>
+                  <span>RS {(posData.price * posData.quantity * (1 - posData.discount / 100)).toFixed(2)}</span>
                 </div>
               </div>
 

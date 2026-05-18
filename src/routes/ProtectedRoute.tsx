@@ -21,6 +21,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
     const hasRole = user.roles.some((role: string) => allowedRoles.includes(role));
     if (!hasRole) {
       // Role not authorized, redirect to home or unauthorized page
+      if (user.roles.includes('Admin')) {
+        return <Navigate to="/admin-dashboard" replace />;
+      }
+      if (user.roles.includes('Staff')) {
+        return <Navigate to="/staff-dashboard" replace />;
+      }
       return <Navigate to="/dashboard" replace />;
     }
   }

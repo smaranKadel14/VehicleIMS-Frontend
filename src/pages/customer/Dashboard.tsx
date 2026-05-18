@@ -226,7 +226,7 @@ const CustomerDashboard: FC = () => {
                 <div>
                   <p className="text-xs font-bold text-neutral/50 mb-1">Pending Balance</p>
                   <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #{stats?.lastInvoiceNumber || 'N/A'}</p>
-                  <p className="text-4xl font-heading font-extrabold tracking-tighter">${stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
+                  <p className="text-4xl font-heading font-extrabold tracking-tighter">RS {stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
                 </div>
                 <button className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl">
                   Pay Balance
@@ -374,7 +374,7 @@ const CustomerDashboard: FC = () => {
               />
               <StatCard 
                 label="Total Maintenance" 
-                value={`$${stats?.totalMaintenance.toLocaleString() || '0'}`} 
+                value={`RS ${stats?.totalMaintenance.toLocaleString() || '0'}`} 
                 trend="SINCE REGISTRATION" 
                 icon={Wrench}
                 delay="delay-[700ms]"
