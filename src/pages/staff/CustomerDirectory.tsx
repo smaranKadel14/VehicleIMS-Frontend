@@ -1,5 +1,19 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { 
+  Search, 
+  LayoutDashboard,
+  Users, 
+  Settings, 
+  LogOut, 
+  Bell, 
+  Package, 
+  Shield, 
+  Car, 
+  Trash2, 
+  Edit3,
+  Plus
+} from "lucide-react";
 import authService from "../../services/authService";
 import customerService from "../../services/customerService";
 import type { CustomerHistoryResponse } from "../../services/customerService";
@@ -10,7 +24,7 @@ type SearchType     = "All" | "Name" | "Phone" | "Vehicle" | "ID";
 type SortOption     = "Total Spend" | "Last Visit" | "Name" | "Vehicles";
 type StatusFilter   = "All Active" | "All" | "Inactive";
 
-interface Customer {
+export interface Customer {
   id:            number;
   name:          string;
   phone:         string;
@@ -24,7 +38,7 @@ interface Customer {
   vehiclePlates: string[];
 }
 
-interface CustomerFormData {
+export interface CustomerFormData {
   firstName: string;
   lastName: string;
   username: string;
@@ -246,7 +260,9 @@ function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onC
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ background: "#fff", borderRadius: 16, padding: 32, width: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", textAlign: "center" }}>
-        <div style={{ width: 56, height: 56, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 24 }}>🗑️</div>
+        <div style={{ width: 56, height: 56, background: "#fee2e2", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#dc2626" }}>
+          <Trash2 className="w-6 h-6" />
+        </div>
         <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Remove Customer?</h2>
         <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 28 }}>
           Are you sure you want to remove <strong>{customer.name}</strong>? This action cannot be undone.
@@ -317,7 +333,7 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
           )}
           {customer.vehiclePlates.map((plate) => (
             <div key={plate} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "#f9fafb", borderRadius: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 16 }}>🚗</span>
+              <Car className="w-4 h-4 text-gray-500" />
               <span style={{ fontWeight: 600, fontSize: 13, fontFamily: "monospace" }}>{plate}</span>
             </div>
           ))}
@@ -366,9 +382,17 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
-            style={{ flex: 1, padding: 11, border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>✏️ Edit</button>
+            style={{ flex: 1, padding: 11, border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Edit3 className="w-3.5 h-3.5" /> Edit
+            </span>
+          </button>
           <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            style={{ flex: 1, padding: 11, background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>🗑️ Remove</button>
+            style={{ flex: 1, padding: 11, background: "#fee2e2", color: "#dc2626", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+              <Trash2 className="w-3.5 h-3.5" /> Remove
+            </span>
+          </button>
         </div>
       </div>
     </>
@@ -385,19 +409,14 @@ export default function CustomerSearch() {
 
   const filteredNavItems = isStaff
     ? [
-        { icon: "⊞", label: "Dashboard", path: "/staff-dashboard" },
-        { icon: "🔧", label: "Work Orders", path: "#" },
-        { icon: "🚚", label: "Logistics", path: "#" },
-        { icon: "👥", label: "Customers", active: true, path: "/customers" },
-        { icon: "📊", label: "Analytics", path: "#" },
+        { icon: LayoutDashboard, label: "Dashboard", path: "/staff-dashboard" },
+        { icon: Users, label: "Customers", active: true, path: "/customers" },
       ]
     : [
-        { icon: "⊞", label: "Dashboard", path: "/admin-dashboard" },
-        { icon: "📦", label: "Inventory", path: "/inventory" },
-        { icon: "👥", label: "Vendors", path: "/vendors" },
-        { icon: "🛡️", label: "Staff", path: "/staff-management" },
-        { icon: "🔧", label: "Work Orders", path: "#" },
-        { icon: "🚚", label: "Logistics", path: "#" },
+        { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
+        { icon: Package, label: "Inventory", path: "/inventory" },
+        { icon: Users, label: "Vendors", path: "/vendors" },
+        { icon: Shield, label: "Staff", path: "/staff-management" },
       ];
 
   const handleLogout = () => {
@@ -509,13 +528,15 @@ export default function CustomerSearch() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif", background: "#f3f4f6", color: "#111" }}>
 
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <aside style={{ width: 240, background: "#1a1a1a", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
 
         {/* Brand */}
         <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid #2a2a2a" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, background: "#2a2a2a", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚙️</div>
+            <div style={{ width: 36, height: 36, background: "#2a2a2a", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>
+              <Settings className="w-5 h-5" />
+            </div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.3px" }}>EngineCore</div>
               <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 500, letterSpacing: "0.04em" }}>V-Series Portal</div>
@@ -523,9 +544,8 @@ export default function CustomerSearch() {
           </div>
         </div>
 
-        {/* Nav Items */}
         <nav style={{ flex: 1, padding: "12px 0" }}>
-          {filteredNavItems.map(({ icon, label, active, path }) => (
+          {filteredNavItems.map(({ icon: Icon, label, active, path }) => (
             <div
               key={label}
               onClick={() => {
@@ -545,7 +565,9 @@ export default function CustomerSearch() {
               onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "#222"; }}
               onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
-              <span style={{ fontSize: 15, opacity: active ? 1 : 0.7 }}>{icon}</span>
+              <span style={{ display: "flex", alignItems: "center", opacity: active ? 1 : 0.7 }}>
+                <Icon className="w-4 h-4" />
+              </span>
               {label}
             </div>
           ))}
@@ -557,18 +579,17 @@ export default function CustomerSearch() {
             onClick={() => setModal("add")}
             style={{ width: "100%", padding: "11px 0", background: "#2a2a2a", color: "#fff", border: "1px solid #3a3a3a", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
           >
-            <span style={{ fontSize: 16 }}>+</span> New Customer
+            <Plus className="w-4 h-4" /> New Customer
           </button>
         </div>
 
-        {/* Bottom: Settings + Sign Out */}
         <div style={{ borderTop: "1px solid #2a2a2a", padding: "12px 0" }}>
           <div
             style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", color: "#9ca3af", fontSize: 13.5, cursor: "pointer" }}
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#fff"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
           >
-            <span style={{ fontSize: 15 }}>⚙️</span> Settings
+            <Settings className="w-4 h-4" /> Settings
           </div>
           <div
             style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", color: "#9ca3af", fontSize: 13.5, cursor: "pointer" }}
@@ -576,19 +597,19 @@ export default function CustomerSearch() {
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
             onClick={handleLogout}
           >
-            <span style={{ fontSize: 15 }}>↪</span> Sign Out
+            <LogOut className="w-4 h-4" /> Sign Out
           </div>
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Topbar */}
         <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 32px", height: 60, display: "flex", alignItems: "center", gap: 20, flexShrink: 0, position: "sticky", top: 0, zIndex: 10 }}>
           {/* Global search */}
           <div style={{ position: "relative", flex: 1, maxWidth: 380 }}>
-            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9ca3af", fontSize: 14 }}>🔍</span>
+            <Search className="w-4 h-4 text-gray-400" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
             <input
               placeholder="Search customer, vehicle, or VIN..."
               style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: "#374151" }}
@@ -601,8 +622,12 @@ export default function CustomerSearch() {
           ))}
 
           {/* Icons */}
-          <span style={{ fontSize: 18, cursor: "pointer", color: "#374151" }}>🔔</span>
-          <span style={{ fontSize: 18, cursor: "pointer", color: "#374151" }}>⚙️</span>
+          <span style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#374151" }}>
+            <Bell className="w-5 h-5" />
+          </span>
+          <span style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#374151" }}>
+            <Settings className="w-5 h-5" />
+          </span>
 
           {/* Staff identity */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 4 }}>
@@ -645,7 +670,7 @@ export default function CustomerSearch() {
 
               {/* Search Input */}
               <div style={{ flex: 1, position: "relative", minWidth: 200 }}>
-                <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#9ca3af" }}>🔍</span>
+                <Search className="w-4 h-4 text-gray-400" style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)" }} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -756,7 +781,7 @@ export default function CustomerSearch() {
         </main>
       </div>
 
-      {/* ── Customer Detail Drawer ── */}
+      {/* Customer Detail Drawer */}
       {drawer && (
         <CustomerDrawer
           customer={drawer}
@@ -766,7 +791,7 @@ export default function CustomerSearch() {
         />
       )}
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       {modal === "add" && (
         <CustomerModal customer={null} onClose={() => setModal(null)} onSave={handleAdd} />
       )}

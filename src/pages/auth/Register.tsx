@@ -157,7 +157,7 @@ const Register: React.FC = () => {
                 </div>
               )}
 
-              {/* ── Owner Credentials Section ── */}
+              {/* Owner Credentials Section */}
               <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary border-b border-secondary/20 pb-2">Owner Credentials & Location</h3>
                 
@@ -255,7 +255,7 @@ const Register: React.FC = () => {
                 </div>
               </div>
 
-              {/* ── Vehicle Info Section ── */}
+              {/* Vehicle Info Section */}
               <div className="space-y-4 pt-2">
                 <h3 className="text-xs font-black uppercase tracking-[0.2em] text-primary border-b border-secondary/20 pb-2">Primary Vehicle Registration</h3>
                 

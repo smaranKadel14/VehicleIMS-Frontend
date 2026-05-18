@@ -55,8 +55,6 @@ const NAV_ITEMS = [
   { icon: Users, label: "Vendors", path: "/vendors" },
   { icon: ShieldCheck, label: "Staff", active: true, path: "/staff-management" },
   { icon: FileText, label: "Purchases", path: "/purchases" },
-  { icon: Wrench, label: "Work Orders", path: "#" },
-  { icon: Truck, label: "Logistics", path: "#" },
 ];
 // Reusable UI components used within this page
 const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (

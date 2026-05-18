@@ -6,7 +6,7 @@ import type { VendorResponse } from "../../services/vendorService";
 import authService from "../../services/authService";
 import { 
   Cpu, CircleDot, Battery, Settings, Wrench, Wind, AlertCircle, 
-  LayoutDashboard, Package, Users, ShieldCheck, FileText, Truck, Zap, 
+  LayoutDashboard, Package, Users, ShieldCheck, FileText, Zap, 
   LogOut, Search, Bell, Boxes 
 } from "lucide-react";
 
@@ -306,8 +306,6 @@ export default function PartsManagement() {
       { icon: Users, label: "Vendors", path: "/vendors" },
       { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
       { icon: FileText, label: "Purchases", path: "/purchases" },
-      { icon: Wrench, label: "Work Orders", path: "#" },
-      { icon: Truck, label: "Logistics", path: "#" },
     ];
   }, []);
 
@@ -444,7 +442,7 @@ export default function PartsManagement() {
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Topbar */}
@@ -643,7 +641,7 @@ export default function PartsManagement() {
         </main>
       </div>
 
-      {/* ── Modals ── */}
+      {/* Modals */}
       {modal === "add" && (
         <AddEditModal part={null} vendors={vendors} onClose={() => setModal(null)} onSave={handleAdd} />
       )}

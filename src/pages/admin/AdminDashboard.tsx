@@ -3,9 +3,7 @@ import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import { 
   LayoutDashboard, 
-  Package, 
-  Wrench, 
-  Truck, 
+  Package,
   BarChart3, 
   Settings, 
   LogOut, 
@@ -233,8 +231,6 @@ const AdminDashboard: FC = () => {
           <NavItem icon={Users} label="Vendors" onClick={() => navigate('/vendors')} />
           <NavItem icon={ShieldCheck} label="Staff" onClick={() => navigate('/staff-management')} />
           <NavItem icon={FileText} label="Purchases" onClick={() => navigate('/purchases')} />
-          <NavItem icon={Wrench} label="Work Orders" />
-          <NavItem icon={Truck} label="Logistics" />
         </nav>
 
         <div className="px-6 py-8 border-t border-white/5 space-y-6">
@@ -285,7 +281,7 @@ const AdminDashboard: FC = () => {
                 <HeaderIcon icon={Bell} badge={stockAlerts > 0} onClick={() => setShowNotificationList(!showNotificationList)} />
                 <HeaderIcon icon={Settings} />
 
-                {/* ── Dynamic System Notification List Dropdown ── */}
+                {/* Dynamic System Notification List Dropdown */}
                 {showNotificationList && (
                   <div className="absolute right-0 top-14 w-[380px] bg-white rounded-3xl border border-secondary/20 shadow-2xl p-6 z-50 animate-fade-in">
                     <h4 className="font-heading font-extrabold text-lg text-primary border-b border-secondary/20 pb-3 flex justify-between items-center">

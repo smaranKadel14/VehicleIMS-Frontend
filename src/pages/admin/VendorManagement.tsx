@@ -4,8 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
-  Wrench, 
-  Truck, 
   Settings, 
   LogOut, 
   Search, 
@@ -55,8 +53,6 @@ const NAV_ITEMS = [
   { icon: Users, label: "Vendors", active: true, path: "/vendors" },
   { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
   { icon: FileText, label: "Purchases", path: "/purchases" },
-  { icon: Wrench, label: "Work Orders", path: "#" },
-  { icon: Truck, label: "Logistics", path: "#" },
 ];
 
 const EMPTY_FORM: VendorFormData = {
@@ -383,7 +379,7 @@ export default function VendorManagement() {
         </div>
       </aside>
 
-      {/* ── Main Panel ── */}
+      {/* Main Panel */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Topbar */}
@@ -512,7 +508,7 @@ export default function VendorManagement() {
         </main>
       </div>
 
-      {/* ── Modal Dialog overlays ── */}
+      {/* Modal Dialog overlays */}
       {modal === "add" && (
         <VendorModal vendor={null} onClose={() => setModal(null)} onSave={handleAdd} />
       )}

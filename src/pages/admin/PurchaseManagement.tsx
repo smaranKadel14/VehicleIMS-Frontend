@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
-  Wrench, 
-  Truck, 
   Settings, 
   LogOut, 
   Search, 
@@ -163,8 +161,6 @@ export default function PurchaseManagement() {
     { icon: Users, label: "Vendors", path: "/vendors" },
     { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
     { icon: FileText, label: "Purchases", active: true, path: "/purchases" },
-    { icon: Wrench, label: "Work Orders", path: "#" },
-    { icon: Truck, label: "Logistics", path: "#" },
   ];
 
   // Derived statistics
@@ -389,7 +385,7 @@ export default function PurchaseManagement() {
         </main>
       </div>
 
-      {/* ── Add Invoice Modal ── */}
+      {/* Add Invoice Modal */}
       {modal === "add" && (
         <AddPurchaseModal 
           partsList={parts}
@@ -399,7 +395,7 @@ export default function PurchaseManagement() {
         />
       )}
 
-      {/* ── View Receipt Modal ── */}
+      {/* View Receipt Modal */}
       {modal !== null && typeof modal === 'object' && 'view' in modal && (
         <ViewReceiptModal 
           invoice={modal.view}

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FC } from 'react';
 import { 
@@ -7,7 +7,18 @@ import {
   UserPlus, 
   Car, 
   X, 
-  Sparkles
+  Sparkles,
+  LayoutDashboard,
+  Users,
+  Settings,
+  LogOut,
+  Bell,
+  Package,
+  RefreshCw,
+  Calendar,
+  AlertTriangle,
+  Gem,
+  Mail
 } from 'lucide-react';
 import authService from '../../services/authService';
 import partService from '../../services/partService';
@@ -23,9 +34,14 @@ import type {
 import type { PartResponse } from '../../services/partService';
 import type { CustomerResponse } from '../../services/customerService';
 
+// Import modularized components
+import SellPartsModal from './components/SellPartsModal';
+import RegisterCustomerModal from './components/RegisterCustomerModal';
+
 // Types & Interfaces
 interface ActivityLog {
   id: string;
+  invoiceId?: number;
   customerName: string;
   actionText: string;
   targetObject: string;
@@ -54,11 +70,8 @@ const LOOKUP_DATABASE: LookupItem[] = [
 ];
 
 const NAV_ITEMS = [
-  { icon: "⊞", label: "Dashboard", active: true },
-  { icon: "🔧", label: "Work Orders" },
-  { icon: "🚚", label: "Logistics" },
-  { icon: "👥", label: "Customers" },
-  { icon: "📊", label: "Analytics" },
+  { icon: LayoutDashboard, label: "Dashboard", active: true },
+  { icon: Users, label: "Customers" },
 ];
 
 const StaffDashboard: FC = () => {
@@ -83,8 +96,6 @@ const StaffDashboard: FC = () => {
   // DB integration states
   const [dbParts, setDbParts] = useState<PartResponse[]>([]);
   const [dbCustomers, setDbCustomers] = useState<CustomerResponse[]>([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
-  const [selectedPartId, setSelectedPartId] = useState<string>("");
   const [customerReport, setCustomerReport] = useState<CustomerReportResponse | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
 
@@ -97,6 +108,7 @@ const StaffDashboard: FC = () => {
       const invoices = await salesService.getAll();
       const mapped = invoices.slice(0, 5).map(inv => ({
         id: `act-${inv.id}`,
+        invoiceId: inv.id,
         customerName: inv.customerName,
         actionText: "purchased",
         targetObject: inv.items.map(item => item.partName).join(", ") || "Parts",
@@ -119,14 +131,12 @@ const StaffDashboard: FC = () => {
     partService.getAll()
       .then(res => {
         setDbParts(res);
-        if (res.length > 0) setSelectedPartId(String(res[0].id));
       })
       .catch(err => console.error("Error loading parts:", err));
 
     customerService.search("", "All", "Active")
       .then(res => {
         setDbCustomers(res);
-        if (res.length > 0) setSelectedCustomerId(String(res[0].id));
       })
       .catch(err => console.error("Error loading customers:", err));
 
@@ -134,24 +144,6 @@ const StaffDashboard: FC = () => {
     setLoadingReport(true);
     refreshDashboardStats().finally(() => setLoadingReport(false));
   }, []);
-
-  // Form states for Sell Parts POS
-  const [posData, setPosData] = useState({
-    partName: "Clutch Assembly Kit",
-    price: 420.00,
-    quantity: 1,
-    customerName: "Elena Rossi",
-    discount: 0
-  });
-
-  // Form states for Register Customer CRM
-  const [crmData, setCrmData] = useState({
-    firstName: "",
-    lastName: "",
-    phone: "",
-    email: "",
-    address: ""
-  });
 
   // Global search input for topbar / popup searches
   const [globalSearch, setGlobalSearch] = useState("");
@@ -177,57 +169,42 @@ const StaffDashboard: FC = () => {
     navigate('/login');
   };
 
-  // Submit handlers
-  const handleAuthorizeSale = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCustomerId || !selectedPartId) {
-      showNotification("Please select both a valid customer and a part component.");
-      return;
-    }
-    const part = dbParts.find(p => String(p.id) === selectedPartId);
-    const customer = dbCustomers.find(c => String(c.id) === selectedCustomerId);
-    if (!part || !customer) return;
-
-    const discountPercentage = Number(posData.discount) || 0;
-    const finalPrice = part.price * (1 - discountPercentage / 100);
-    const finalAmount = finalPrice * Number(posData.quantity);
-
+  // Submit handlers for Modular Modals
+  const handleAuthorizeSale = async (data: { customerId: number; partId: number; quantity: number; discountPercentage: number; totalAmount: number }) => {
     try {
       await salesService.create({
-        customerId: Number(selectedCustomerId),
+        customerId: data.customerId,
         isPaid: true,
         items: [
           {
-            partId: Number(selectedPartId),
-            quantity: Number(posData.quantity),
-            unitPrice: part.price
+            partId: data.partId,
+            quantity: data.quantity,
+            unitPrice: dbParts.find(p => p.id === data.partId)?.price || 0
           }
         ]
       });
 
       setIsSellModalOpen(false);
       await refreshDashboardStats();
-      showNotification(`Invoice processed transactionally! RS ${finalAmount.toFixed(2)} added.`);
+      showNotification(`Invoice processed transactionally! RS ${data.totalAmount.toFixed(2)} added.`);
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } } };
       console.error("POS transaction failed:", error);
       showNotification(error?.response?.data?.message || "POS Transaction failed. Out of stock?");
+      throw err;
     }
   };
 
-  const handleRegisterCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!crmData.firstName || !crmData.lastName || !crmData.email) return;
-
+  const handleRegisterCustomer = async (data: { firstName: string; lastName: string; email: string; phone: string; address: string }) => {
     try {
       await customerService.register({
-        username: crmData.firstName.toLowerCase() + crmData.lastName.toLowerCase() + Math.floor(Math.random() * 100),
-        email: crmData.email.trim(),
+        username: data.firstName.toLowerCase() + data.lastName.toLowerCase() + Math.floor(Math.random() * 100),
+        email: data.email.trim(),
         passwordHash: "Client123!",
-        firstName: crmData.firstName.trim(),
-        lastName: crmData.lastName.trim(),
-        phone: crmData.phone.trim(),
-        address: crmData.address.trim() || "N/A",
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        phone: data.phone.trim(),
+        address: data.address.trim() || "N/A",
         make: "Generic",
         model: "Vehicle",
         year: 2024,
@@ -235,7 +212,7 @@ const StaffDashboard: FC = () => {
         licensePlate: "TEMP-" + Math.floor(1000 + Math.random() * 9000)
       });
 
-      const fullName = `${crmData.firstName} ${crmData.lastName}`;
+      const fullName = `${data.firstName} ${data.lastName}`;
       setCustomersServed(prev => prev + 1);
 
       // Refresh DB customer list
@@ -248,7 +225,7 @@ const StaffDashboard: FC = () => {
         customerName: fullName,
         actionText: "registered a",
         targetObject: "CRM profile",
-        subtext: `Account created for ${crmData.email} • Mobile: ${crmData.phone || 'N/A'}`,
+        subtext: `Account created for ${data.email} • Mobile: ${data.phone || 'N/A'}`,
         badges: ["VERIFIED", "DATABASE SAVED"],
         time: "JUST NOW",
         type: "booking"
@@ -257,32 +234,26 @@ const StaffDashboard: FC = () => {
       setActivities(prev => [newLog, ...prev]);
       setIsCrmModalOpen(false);
       showNotification(`Registered customer "${fullName}" successfully in database!`);
-
-      // Reset CRM Form
-      setCrmData({
-        firstName: "",
-        lastName: "",
-        phone: "",
-        email: "",
-        address: ""
-      });
     } catch (err) {
       const error = err as { response?: { data?: { message?: string } } };
       console.error("CRM customer registration failed:", error);
       showNotification(error?.response?.data?.message || "Customer registration failed.");
+      throw err;
     }
   };
 
   return (
     <div style={{ display: "flex", height: "100vh", background: "#F9FAFB", fontFamily: "'Inter', -apple-system, sans-serif", color: "#111827", overflow: "hidden", position: "relative" }}>
       
-      {/* ── Left Navigation Sidebar (Standard Project Style) ── */}
+      {/* Left Navigation Sidebar */}
       <aside style={{ width: 240, background: "#1a1a1a", display: "flex", flexDirection: "column", flexShrink: 0, height: "100vh" }}>
         
         {/* Sidebar Brand Header */}
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #2a2a2a" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚙️</div>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", color: "#111" }}>
+              <Settings className="w-4 h-4" />
+            </div>
             <div>
               <div style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.3px" }}>EngineCore</div>
               <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 500, letterSpacing: "0.04em" }}>V-Series Portal</div>
@@ -290,9 +261,8 @@ const StaffDashboard: FC = () => {
           </div>
         </div>
 
-        {/* Sidebar Navigation Items */}
         <nav style={{ flex: 1, padding: "12px 0" }}>
-          {NAV_ITEMS.map(({ icon, label, active }) => (
+          {NAV_ITEMS.map(({ icon: Icon, label, active }) => (
             <div
               key={label}
               onClick={() => {
@@ -315,7 +285,9 @@ const StaffDashboard: FC = () => {
               onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "#222"; }}
               onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
             >
-              <span style={{ fontSize: 15, opacity: active ? 1 : 0.7 }}>{icon}</span>
+              <span style={{ display: "flex", alignItems: "center", opacity: active ? 1 : 0.7 }}>
+                <Icon className="w-4 h-4" />
+              </span>
               {label}
             </div>
           ))}
@@ -329,7 +301,7 @@ const StaffDashboard: FC = () => {
             onMouseLeave={(e) => { e.currentTarget.style.color = "#9ca3af"; }}
             onClick={() => showNotification("Settings options are managed in your account panel.")}
           >
-            <span style={{ fontSize: 15 }}>⚙️</span> Settings
+            <Settings className="w-4 h-4" /> Settings
           </div>
           <div
             style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", color: "#9ca3af", fontSize: 13.5, cursor: "pointer" }}
@@ -337,12 +309,12 @@ const StaffDashboard: FC = () => {
             onMouseLeave={(e) => { e.currentTarget.style.color = "#9ca3af"; }}
             onClick={handleLogout}
           >
-            <span style={{ fontSize: 15 }}>↪</span> Sign Out
+            <LogOut className="w-4 h-4" /> Sign Out
           </div>
         </div>
       </aside>
 
-      {/* ── Right Content Area (With Topbar + Main Scroll Panel) ── */}
+      {/* Right Content Area */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         
         {/* Floating Success Notifications */}
@@ -401,18 +373,18 @@ const StaffDashboard: FC = () => {
             {/* Notification Bell */}
             <span 
               onClick={() => showNotification("4 high-priority tasks pending on workshop floor.")}
-              style={{ fontSize: 18, cursor: "pointer", color: "#374151" }}
+              style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#374151" }}
             >
-              🔔
+              <Bell className="w-5 h-5" />
             </span>
             
             {/* Gear Settings */}
             <span 
               onClick={handleLogout}
-              style={{ fontSize: 18, cursor: "pointer", color: "#374151" }}
+              style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#374151" }}
               title="Sign Out"
             >
-              ⚙️
+              <LogOut className="w-5 h-5" />
             </span>
 
             {/* Staff Identity Block */}
@@ -433,7 +405,7 @@ const StaffDashboard: FC = () => {
 
         </header>
 
-        {/* ── Main Scroll Panel ── */}
+        {/* Main Scroll Panel */}
         <div style={{ flex: 1, overflowY: "auto", padding: "40px 32px", boxSizing: "border-box" }}>
           
           <div style={{ maxWidth: 1000, margin: "0 auto" }}>
@@ -448,7 +420,7 @@ const StaffDashboard: FC = () => {
               </p>
             </div>
 
-            {/* ── KPI Metric Cards Row (4 Columns) ── */}
+            {/* KPI Metric Cards Row */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 20, marginBottom: 36 }}>
               
               {/* Card 1: Today's Sales */}
@@ -492,7 +464,7 @@ const StaffDashboard: FC = () => {
             </div>
             {activeTab === "Overview" && (
               <>
-                {/* ── Main Dashboard Split Columns ── */}
+                {/* Main Dashboard Split Columns */}
                 <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, marginBottom: 36, alignItems: "start" }}>
                   
                   {/* Left Column: Operational Lookup Box */}
@@ -673,7 +645,7 @@ const StaffDashboard: FC = () => {
 
                 </div>
 
-                {/* ── Customer Activity Feed Panel (Bottom Column) ── */}
+                {/* Customer Activity Feed Panel */}
                 <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: "28px 32px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
                   
                   {/* Feed Header */}
@@ -703,8 +675,14 @@ const StaffDashboard: FC = () => {
                         }}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                          <div style={{ width: 42, height: 42, background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
-                            {act.type === "purchase" ? "📦" : act.type === "refund" ? "🔄" : "📅"}
+                          <div style={{ width: 42, height: 42, background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#374151" }}>
+                            {act.type === "purchase" ? (
+                              <Package className="w-5 h-5" />
+                            ) : act.type === "refund" ? (
+                              <RefreshCw className="w-5 h-5" />
+                            ) : (
+                              <Calendar className="w-5 h-5" />
+                            )}
                           </div>
                           <div>
                             <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
@@ -736,8 +714,47 @@ const StaffDashboard: FC = () => {
                           </div>
                         </div>
 
-                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em" }}>
-                          {act.time}
+                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                          {act.invoiceId && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                showNotification(`Sending Invoice #${act.invoiceId} via Email...`);
+                                try {
+                                  await salesService.sendEmail(act.invoiceId!, {
+                                    subject: `EngineCore Workshop Invoice #${act.invoiceId}`,
+                                    message: "Dear Customer,\n\nThank you for choosing EngineCore Workshop. Your invoice has been processed and is attached. Please contact us if you have any questions.\n\nBest Regards,\nEngineCore Workshop Team"
+                                  });
+                                  showNotification(`Invoice #${act.invoiceId} email dispatched successfully!`);
+                                } catch (err) {
+                                  console.error("Email dispatch failed:", err);
+                                  showNotification("Failed to send email. Check SMTP settings.");
+                                }
+                              }}
+                              style={{
+                                padding: "6px 12px",
+                                background: "#111827",
+                                color: "#FFF",
+                                border: "none",
+                                borderRadius: 8,
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                fontFamily: "inherit",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                transition: "background 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = "#1F2937")}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = "#111827")}
+                            >
+                              <Mail className="w-3.5 h-3.5" /> Send Email
+                            </button>
+                          )}
+                          <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em" }}>
+                            {act.time}
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -783,7 +800,7 @@ const StaffDashboard: FC = () => {
                     {/* Segment 1: High Spenders */}
                     <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                        <span style={{ fontSize: 18 }}>💎</span>
+                        <Gem className="w-5 h-5 text-yellow-500" />
                         <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>High Spenders (Top Revenue Contributors)</h3>
                       </div>
                       <div style={{ overflowX: "auto" }}>
@@ -819,7 +836,7 @@ const StaffDashboard: FC = () => {
                     {/* Segment 2: Regular Customers */}
                     <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                        <span style={{ fontSize: 18 }}>🔄</span>
+                        <RefreshCw className="w-5 h-5 text-blue-500" />
                         <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Regular Customers (Most Frequent Buyers)</h3>
                       </div>
                       <div style={{ overflowX: "auto" }}>
@@ -855,7 +872,7 @@ const StaffDashboard: FC = () => {
                     {/* Segment 3: Pending Credits */}
                     <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                        <span style={{ fontSize: 18 }}>⚠️</span>
+                        <AlertTriangle className="w-5 h-5 text-red-500" />
                         <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Pending Credits (Outstanding Balances)</h3>
                       </div>
                       <div style={{ overflowX: "auto" }}>
@@ -916,199 +933,22 @@ const StaffDashboard: FC = () => {
 
       </div>
 
-      {/* ── Modal Component: Sell Parts (POS Terminal Overlay) ── */}
+      {/* Modal Component: Sell Parts */}
       {isSellModalOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: 16, padding: 32, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", boxSizing: "border-box" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Authorize POS Part Sale</h3>
-              <button onClick={() => setIsSellModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAuthorizeSale} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Select Part Component</label>
-                <select 
-                  value={selectedPartId}
-                  onChange={e => setSelectedPartId(e.target.value)}
-                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, background: "#FFFFFF", outline: "none" }}
-                >
-                  {dbParts.length > 0 ? (
-                    dbParts.map(p => (
-                      <option key={p.id} value={String(p.id)}>{p.name} (RS {p.price.toFixed(2)})</option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="1">Clutch Assembly Kit (RS 420.00)</option>
-                      <option value="2">V6 Piston Kit (RS 280.00)</option>
-                      <option value="3">Heavy Duty Brake Pads (RS 120.00)</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Quantity</label>
-                  <input 
-                    type="number" 
-                    min={1} 
-                    max={20}
-                    value={posData.quantity}
-                    onChange={e => setPosData(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-                    style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Discount (%)</label>
-                  <select 
-                    value={posData.discount}
-                    onChange={e => setPosData(prev => ({ ...prev, discount: parseInt(e.target.value) }))}
-                    style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, background: "#FFFFFF", outline: "none", boxSizing: "border-box" }}
-                  >
-                    <option value={0}>0% (None)</option>
-                    <option value={5}>5% Off</option>
-                    <option value={10}>10% Off</option>
-                    <option value={20}>20% Special</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Customer Name *</label>
-                <select
-                  value={selectedCustomerId}
-                  onChange={e => setSelectedCustomerId(e.target.value)}
-                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, background: "#FFFFFF", outline: "none" }}
-                  required
-                >
-                  {dbCustomers.length > 0 ? (
-                    dbCustomers.map(c => (
-                      <option key={c.id} value={String(c.id)}>{c.fullName} ({c.email})</option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="1">Elena Rossi (elena.rossi@gmail.com)</option>
-                      <option value="2">Marcus Chen (m.chen@outlook.com)</option>
-                      <option value="3">Sarah Jenkins (s.jenkins@yahoo.com)</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              {/* POS Summary */}
-              {(() => {
-                const part = dbParts.find(p => String(p.id) === selectedPartId) || { price: 420.00 };
-                const sub = part.price * posData.quantity;
-                const disc = sub * (posData.discount / 100);
-                const tot = sub - disc;
-                return (
-                  <div style={{ padding: 16, background: "#F9FAFB", borderRadius: 10, marginTop: 8, fontSize: 13 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ color: "#6B7280" }}>Subtotal:</span>
-                      <span style={{ fontWeight: 700 }}>RS {sub.toFixed(2)}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                      <span style={{ color: "#6B7280" }}>Discount Applied:</span>
-                      <span style={{ fontWeight: 700, color: "#EF4444" }}>-RS {disc.toFixed(2)}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #E5E7EB", paddingTop: 8, fontSize: 14, fontWeight: 800 }}>
-                      <span>Total Amount:</span>
-                      <span>RS {tot.toFixed(2)}</span>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-                <button type="button" onClick={() => setIsSellModalOpen(false)} style={{ flex: 1, padding: 12, border: "1.5px solid #E5E7EB", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "inherit" }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: 12, background: "#111827", color: "#FFFFFF", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>Authorize Access</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <SellPartsModal
+          onClose={() => setIsSellModalOpen(false)}
+          onSave={handleAuthorizeSale}
+          dbParts={dbParts}
+          dbCustomers={dbCustomers}
+        />
       )}
 
-      {/* ── Modal Component: Register Customer (CRM Overlay) ── */}
+      {/* Modal Component: Register Customer */}
       {isCrmModalOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: 16, padding: 32, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", boxSizing: "border-box" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Register CRM Customer</h3>
-              <button onClick={() => setIsCrmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-
-            <form onSubmit={handleRegisterCustomer} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>First Name *</label>
-                  <input 
-                    type="text" 
-                    value={crmData.firstName}
-                    onChange={e => setCrmData(prev => ({ ...prev, firstName: e.target.value }))}
-                    placeholder="e.g. John"
-                    style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
-                    required
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Last Name *</label>
-                  <input 
-                    type="text" 
-                    value={crmData.lastName}
-                    onChange={e => setCrmData(prev => ({ ...prev, lastName: e.target.value }))}
-                    placeholder="e.g. Doe"
-                    style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Email Address *</label>
-                <input 
-                  type="email" 
-                  value={crmData.email}
-                  onChange={e => setCrmData(prev => ({ ...prev, email: e.target.value }))}
-                  placeholder="e.g. john.doe@mail.com"
-                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number</label>
-                <input 
-                  type="text" 
-                  value={crmData.phone}
-                  onChange={e => setCrmData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="e.g. 555-0100"
-                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Home Address</label>
-                <input 
-                  type="text" 
-                  value={crmData.address}
-                  onChange={e => setCrmData(prev => ({ ...prev, address: e.target.value }))}
-                  placeholder="e.g. 128 Fleet Way, Sector 4"
-                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
-                <button type="button" onClick={() => setIsCrmModalOpen(false)} style={{ flex: 1, padding: 12, border: "1.5px solid #E5E7EB", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "inherit" }}>Cancel</button>
-                <button type="submit" style={{ flex: 1, padding: 12, background: "#111827", color: "#FFFFFF", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}>Create CRM Profile</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <RegisterCustomerModal
+          onClose={() => setIsCrmModalOpen(false)}
+          onSave={handleRegisterCustomer}
+        />
       )}
 
     </div>
