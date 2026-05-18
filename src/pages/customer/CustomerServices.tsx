@@ -8,10 +8,11 @@ import {
   Info 
 } from 'lucide-react';
 import customerService from '../../services/customerService';
+import type { Vehicle } from '../../services/dashboardService';
 
 interface CustomerServicesProps {
   customerId: number | null;
-  vehicles: any[];
+  vehicles: Vehicle[];
   fetchData: () => void;
 }
 
@@ -38,6 +39,7 @@ export const CustomerServices: FC<CustomerServicesProps> = ({
 
   useEffect(() => {
     if (vehicles.length > 0 && !selectedVehicleId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedVehicleId(vehicles[0].id.toString());
     }
   }, [vehicles, selectedVehicleId]);
@@ -73,6 +75,7 @@ export const CustomerServices: FC<CustomerServicesProps> = ({
       
       // Refresh parent dashboard stats
       fetchData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setBookingError(err.response?.data?.message || err.message || "Failed to book appointment");
     } finally {
@@ -102,6 +105,7 @@ export const CustomerServices: FC<CustomerServicesProps> = ({
 
       setPartSuccess(res.message || "Rare part sourced and queued successfully!");
       setPartName('');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setPartError(err.response?.data?.message || err.message || "Failed to submit part request");
     } finally {

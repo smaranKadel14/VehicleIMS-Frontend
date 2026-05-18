@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FC } from 'react';
 import { 
@@ -10,6 +10,10 @@ import {
   Sparkles
 } from 'lucide-react';
 import authService from '../../services/authService';
+import partService from '../../services/partService';
+import customerService from '../../services/customerService';
+import salesService from '../../services/salesService';
+import reportService from '../../services/reportService';
 
 // Types & Interfaces
 interface ActivityLog {
@@ -101,6 +105,36 @@ const StaffDashboard: FC = () => {
   // Custom Success Notifications
   const [notification, setNotification] = useState<string | null>(null);
 
+  // DB integration states
+  const [dbParts, setDbParts] = useState<any[]>([]);
+  const [dbCustomers, setDbCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedPartId, setSelectedPartId] = useState<string>("");
+  const [customerReport, setCustomerReport] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
+  useEffect(() => {
+    partService.getAll()
+      .then(res => {
+        setDbParts(res);
+        if (res.length > 0) setSelectedPartId(String(res[0].id));
+      })
+      .catch(err => console.error("Error loading parts:", err));
+
+    customerService.search("", "All", "Active")
+      .then(res => {
+        setDbCustomers(res);
+        if (res.length > 0) setSelectedCustomerId(String(res[0].id));
+      })
+      .catch(err => console.error("Error loading customers:", err));
+
+    setLoadingReport(true);
+    reportService.getCustomerReport()
+      .then(res => setCustomerReport(res))
+      .catch(err => console.error("Error loading customer reports:", err))
+      .finally(() => setLoadingReport(false));
+  }, []);
+
   // Form states for Sell Parts POS
   const [posData, setPosData] = useState({
     partName: "Clutch Assembly Kit",
@@ -144,72 +178,112 @@ const StaffDashboard: FC = () => {
   };
 
   // Submit handlers
-  const handleAuthorizeSale = (e: React.FormEvent) => {
+  const handleAuthorizeSale = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalAmount = (posData.price * posData.quantity * (1 - posData.discount / 100));
-    
-    // Add to sales metric
-    setTodaySales(prev => prev + finalAmount);
-    
-    // Add to activity list
-    const newLog: ActivityLog = {
-      id: `act-${Date.now()}`,
-      customerName: posData.customerName,
-      actionText: "purchased",
-      targetObject: posData.partName,
-      subtext: `Invoice #INV-${Math.floor(10000 + Math.random() * 90000)} • Amount: RS ${finalAmount.toFixed(2)}`,
-      badges: ["PAID", "IN STOCK"],
-      time: "JUST NOW",
-      type: "purchase"
-    };
+    if (!selectedCustomerId || !selectedPartId) {
+      showNotification("Please select both a valid customer and a part component.");
+      return;
+    }
+    const part = dbParts.find(p => String(p.id) === selectedPartId);
+    const customer = dbCustomers.find(c => String(c.id) === selectedCustomerId);
+    if (!part || !customer) return;
 
-    setActivities(prev => [newLog, ...prev]);
-    setIsSellModalOpen(false);
-    showNotification(`Invoice authorized! RS ${finalAmount.toFixed(2)} added to sales log.`);
-    
-    // Reset POS form
-    setPosData({
-      partName: "Clutch Assembly Kit",
-      price: 420.00,
-      quantity: 1,
-      customerName: "Elena Rossi",
-      discount: 0
-    });
+    const discountPercentage = Number(posData.discount) || 0;
+    const finalPrice = part.price * (1 - discountPercentage / 100);
+    const finalAmount = finalPrice * Number(posData.quantity);
+
+    try {
+      await salesService.create({
+        customerId: Number(selectedCustomerId),
+        isPaid: true,
+        items: [
+          {
+            partId: Number(selectedPartId),
+            quantity: Number(posData.quantity),
+            unitPrice: part.price
+          }
+        ]
+      });
+
+      // Add to sales metric
+      setTodaySales(prev => prev + finalAmount);
+
+      // Add to activity list
+      const newLog: ActivityLog = {
+        id: `act-${Date.now()}`,
+        customerName: customer.fullName,
+        actionText: "purchased",
+        targetObject: part.name,
+        subtext: `Invoice #INV-${Math.floor(10000 + Math.random() * 90000)} • Amount: RS ${finalAmount.toFixed(2)}`,
+        badges: ["PAID", "DATABASE SAVED"],
+        time: "JUST NOW",
+        type: "purchase"
+      };
+
+      setActivities(prev => [newLog, ...prev]);
+      setIsSellModalOpen(false);
+      showNotification(`Invoice processed transactionally! RS ${finalAmount.toFixed(2)} added.`);
+    } catch (err: any) {
+      console.error("POS transaction failed:", err);
+      showNotification(err?.response?.data?.message || "POS Transaction failed. Out of stock?");
+    }
   };
 
-  const handleRegisterCustomer = (e: React.FormEvent) => {
+  const handleRegisterCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!crmData.firstName || !crmData.lastName || !crmData.email) return;
 
-    const fullName = `${crmData.firstName} ${crmData.lastName}`;
-    
-    // Update KPI metrics
-    setCustomersServed(prev => prev + 1);
+    try {
+      await customerService.register({
+        username: crmData.firstName.toLowerCase() + crmData.lastName.toLowerCase() + Math.floor(Math.random() * 100),
+        email: crmData.email.trim(),
+        passwordHash: "Client123!",
+        firstName: crmData.firstName.trim(),
+        lastName: crmData.lastName.trim(),
+        phone: crmData.phone.trim(),
+        address: crmData.address.trim() || "N/A",
+        make: "Generic",
+        model: "Vehicle",
+        year: 2024,
+        vin: "VIN-TEMP-1234",
+        licensePlate: "TEMP-" + Math.floor(1000 + Math.random() * 9000)
+      });
 
-    // Add to activity list
-    const newLog: ActivityLog = {
-      id: `act-${Date.now()}`,
-      customerName: fullName,
-      actionText: "registered a",
-      targetObject: "CRM profile",
-      subtext: `Account created for ${crmData.email} • Mobile: ${crmData.phone || 'N/A'}`,
-      badges: ["VERIFIED"],
-      time: "JUST NOW",
-      type: "booking"
-    };
+      const fullName = `${crmData.firstName} ${crmData.lastName}`;
+      setCustomersServed(prev => prev + 1);
 
-    setActivities(prev => [newLog, ...prev]);
-    setIsCrmModalOpen(false);
-    showNotification(`Registered customer "${fullName}" successfully!`);
+      // Refresh DB customer list
+      const updatedCustomers = await customerService.search("", "All", "Active");
+      setDbCustomers(updatedCustomers);
 
-    // Reset CRM Form
-    setCrmData({
-      firstName: "",
-      lastName: "",
-      phone: "",
-      email: "",
-      address: ""
-    });
+      // Add to activity list
+      const newLog: ActivityLog = {
+        id: `act-${Date.now()}`,
+        customerName: fullName,
+        actionText: "registered a",
+        targetObject: "CRM profile",
+        subtext: `Account created for ${crmData.email} • Mobile: ${crmData.phone || 'N/A'}`,
+        badges: ["VERIFIED", "DATABASE SAVED"],
+        time: "JUST NOW",
+        type: "booking"
+      };
+
+      setActivities(prev => [newLog, ...prev]);
+      setIsCrmModalOpen(false);
+      showNotification(`Registered customer "${fullName}" successfully in database!`);
+
+      // Reset CRM Form
+      setCrmData({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+        address: ""
+      });
+    } catch (err: any) {
+      console.error("CRM customer registration failed:", err);
+      showNotification(err?.response?.data?.message || "Customer registration failed.");
+    }
   };
 
   return (
@@ -429,259 +503,425 @@ const StaffDashboard: FC = () => {
               </div>
 
             </div>
+            {activeTab === "Overview" && (
+              <>
+                {/* ── Main Dashboard Split Columns ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, marginBottom: 36, alignItems: "start" }}>
+                  
+                  {/* Left Column: Operational Lookup Box */}
+                  <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.02)", position: "relative" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+                      <Search className="w-5 h-5" style={{ color: "#111827" }} />
+                      <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: "-0.3px" }}>Operational Lookup</h2>
+                    </div>
 
-            {/* ── Main Dashboard Split Columns ── */}
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24, marginBottom: 36, alignItems: "start" }}>
-              
-              {/* Left Column: Operational Lookup Box */}
-              <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.02)", position: "relative" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-                  <Search className="w-5 h-5" style={{ color: "#111827" }} />
-                  <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: "-0.3px" }}>Operational Lookup</h2>
-                </div>
+                    {/* Massive Centered Search Bar */}
+                    <div style={{ position: "relative", marginBottom: 24 }}>
+                      <span style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }}>
+                        <Search className="w-5 h-5" />
+                      </span>
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Start typing name, license plate, or part number..."
+                        style={{ width: "100%", paddingLeft: 52, paddingRight: 96, paddingTop: 18, paddingBottom: 18, border: "1.5px solid #E5E7EB", background: "#F9FAFB", borderRadius: 14, fontSize: 14.5, fontWeight: 500, outline: "none", boxSizing: "border-box", fontFamily: "inherit", color: "#111827" }}
+                      />
+                      <span style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "1.5px solid #E5E7EB", padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>
+                        <span>CTRL</span>
+                        <span>K</span>
+                      </span>
+                    </div>
 
-                {/* Massive Centered Search Bar */}
-                <div style={{ position: "relative", marginBottom: 24 }}>
-                  <span style={{ position: "absolute", left: 20, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }}>
-                    <Search className="w-5 h-5" />
-                  </span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Start typing name, license plate, or part number..."
-                    style={{ width: "100%", paddingLeft: 52, paddingRight: 96, paddingTop: 18, paddingBottom: 18, border: "1.5px solid #E5E7EB", background: "#F9FAFB", borderRadius: 14, fontSize: 14.5, fontWeight: 500, outline: "none", boxSizing: "border-box", fontFamily: "inherit", color: "#111827" }}
-                  />
-                  <span style={{ position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "1.5px solid #E5E7EB", padding: "4px 8px", borderRadius: 6, fontSize: 10, fontWeight: 700, color: "#9CA3AF" }}>
-                    <span>CTRL</span>
-                    <span>K</span>
-                  </span>
-                </div>
-
-                {/* Autocomplete Popup List */}
-                {searchQuery.trim() ? (
-                  <div style={{ background: "#FFFFFF", border: "1.5px solid #E5E7EB", borderRadius: 12, overflow: "hidden", position: "absolute", left: 32, right: 32, top: "100%", zIndex: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
-                    {filteredLookup.length === 0 ? (
-                      <div style={{ padding: "16px 20px", color: "#6B7280", fontSize: 13, textAlign: "center" }}>
-                        No results found for "{searchQuery}". Try "Elena", "WBA" or "Clutch".
-                      </div>
-                    ) : (
-                      <div>
-                        {filteredLookup.map((item, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => {
-                              setSearchQuery("");
-                              showNotification(`Navigated to: ${item.title}`);
-                            }}
-                            style={{ padding: "14px 20px", borderBottom: idx === filteredLookup.length - 1 ? "none" : "1px solid #F3F4F6", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
-                            onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
-                          >
-                            <div>
-                              <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700 }}>{item.title}</p>
-                              <p style={{ margin: "2px 0 0 0", fontSize: 11, color: "#6B7280" }}>{item.subtitle}</p>
-                            </div>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: item.type === "Customer" ? "#E0F2FE" : item.type === "Vehicle" ? "#FEF3C7" : "#DCFCE7", color: item.type === "Customer" ? "#0369A1" : item.type === "Vehicle" ? "#B45309" : "#15803D" }}>
-                              {item.type.toUpperCase()}
-                            </span>
+                    {/* Autocomplete Popup List */}
+                    {searchQuery.trim() ? (
+                      <div style={{ background: "#FFFFFF", border: "1.5px solid #E5E7EB", borderRadius: 12, overflow: "hidden", position: "absolute", left: 32, right: 32, top: "100%", zIndex: 10, boxShadow: "0 10px 30px rgba(0,0,0,0.08)" }}>
+                        {filteredLookup.length === 0 ? (
+                          <div style={{ padding: "16px 20px", color: "#6B7280", fontSize: 13, textAlign: "center" }}>
+                            No results found for "{searchQuery}". Try "Elena", "WBA" or "Clutch".
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 11.5, fontWeight: 600, color: "#6B7280", display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <span style={{ textTransform: "uppercase", letterSpacing: "0.05em", color: "#9CA3AF" }}>Recent Searches:</span>
-                    <span style={{ color: "#111827", cursor: "pointer" }} onClick={() => setSearchQuery("WBA53BK")}>VIN: WBA53BK...</span>
-                    <span style={{ color: "#111827", cursor: "pointer" }} onClick={() => setSearchQuery("Elena")}>Customer: Elena Rossi</span>
-                    <span style={{ color: "#111827", cursor: "pointer" }} onClick={() => setSearchQuery("Piston-Kit")}>Part: V6-Piston-Kit</span>
-                  </div>
-                )}
-
-              </div>
-
-              {/* Right Column: Action Buttons */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                
-                {/* Action 1: Sell Parts */}
-                <button
-                  onClick={() => setIsSellModalOpen(true)}
-                  style={{
-                    width: "100%",
-                    background: "#111827",
-                    border: "none",
-                    borderRadius: 14,
-                    padding: "20px 24px",
-                    textAlign: "left",
-                    color: "#FFFFFF",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    boxShadow: "0 6px 20px rgba(17,24,39,0.15)",
-                    transition: "transform 0.15s ease, background 0.15s ease",
-                    fontFamily: "inherit"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.background = "#1F2937";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.background = "#111827";
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Sell Parts</p>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>Direct POS terminal</p>
-                  </div>
-                  <ShoppingCart className="w-5 h-5 text-white" />
-                </button>
-
-                {/* Action 2: Register Customer */}
-                <button
-                  onClick={() => setIsCrmModalOpen(true)}
-                  style={{
-                    width: "100%",
-                    background: "#E5E7EB",
-                    border: "none",
-                    borderRadius: 14,
-                    padding: "20px 24px",
-                    textAlign: "left",
-                    color: "#111827",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    transition: "transform 0.15s ease, background 0.15s ease",
-                    fontFamily: "inherit"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.background = "#D1D5DB";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.background = "#E5E7EB";
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Register Customer</p>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#6B7280", fontWeight: 500 }}>Create CRM profile</p>
-                  </div>
-                  <UserPlus className="w-5 h-5 text-gray-800" />
-                </button>
-
-                {/* Action 3: Search Vehicle */}
-                <button
-                  onClick={() => showNotification("OBD Telemetry details loaded! Check Customer Activity feed below.")}
-                  style={{
-                    width: "100%",
-                    background: "#E5E7EB",
-                    border: "none",
-                    borderRadius: 14,
-                    padding: "20px 24px",
-                    textAlign: "left",
-                    color: "#111827",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    transition: "transform 0.15s ease, background 0.15s ease",
-                    fontFamily: "inherit"
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.background = "#D1D5DB";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.background = "#E5E7EB";
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Search Vehicle</p>
-                    <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#6B7280", fontWeight: 500 }}>Service history & specs</p>
-                  </div>
-                  <Car className="w-5 h-5 text-gray-800" />
-                </button>
-
-              </div>
-
-            </div>
-
-            {/* ── Customer Activity Feed Panel (Bottom Column) ── */}
-            <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: "28px 32px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
-              
-              {/* Feed Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-                <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: "-0.3px" }}>Customer Activity Feed</h2>
-                <button 
-                  onClick={() => showNotification("Retrieving complete history logs database...")}
-                  style={{ background: "none", border: "none", fontSize: 10.5, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", cursor: "pointer", fontFamily: "inherit" }}
-                >
-                  View All Logs
-                </button>
-              </div>
-
-              {/* Activity Cards List */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                {activities.map((act) => (
-                  <div 
-                    key={act.id} 
-                    style={{ 
-                      background: "#F9FAFB", 
-                      border: "1px solid #F3F4F6", 
-                      borderRadius: 12, 
-                      padding: "18px 24px", 
-                      display: "flex", 
-                      justifyContent: "space-between", 
-                      alignItems: "center" 
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                      <div style={{ width: 42, height: 42, background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
-                        {act.type === "purchase" ? "📦" : act.type === "refund" ? "🔄" : "📅"}
-                      </div>
-                      <div>
-                        <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
-                          <strong style={{ fontWeight: 800 }}>{act.customerName}</strong> {act.actionText} <strong style={{ fontWeight: 800 }}>{act.targetObject}</strong>
-                        </p>
-                        <p style={{ margin: "4px 0 0 0", fontSize: 11.5, color: "#6B7280", fontWeight: 500 }}>{act.subtext}</p>
-                        
-                        {/* Badges */}
-                        {act.badges.length > 0 && (
-                          <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                            {act.badges.map((b) => (
-                              <span 
-                                key={b} 
-                                style={{ 
-                                  fontSize: 9, 
-                                  fontWeight: 800, 
-                                  padding: "3px 8px", 
-                                  borderRadius: 4, 
-                                  background: b === "PAID" || b === "VERIFIED" ? "#DCFCE7" : b === "IN STOCK" ? "#E5E7EB" : "#FEE2E2", 
-                                  color: b === "PAID" || b === "VERIFIED" ? "#15803D" : b === "IN STOCK" ? "#4B5563" : "#B91C1C",
-                                  letterSpacing: "0.04em"
+                        ) : (
+                          <div>
+                            {filteredLookup.map((item, idx) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setSearchQuery("");
+                                  showNotification(`Navigated to: ${item.title}`);
                                 }}
+                                style={{ padding: "14px 20px", borderBottom: idx === filteredLookup.length - 1 ? "none" : "1px solid #F3F4F6", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                               >
-                                {b}
-                              </span>
+                                <div>
+                                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700 }}>{item.title}</p>
+                                  <p style={{ margin: "2px 0 0 0", fontSize: 11, color: "#6B7280" }}>{item.subtitle}</p>
+                                </div>
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 10px", borderRadius: 6, background: item.type === "Customer" ? "#E0F2FE" : item.type === "Vehicle" ? "#FEF3C7" : "#DCFCE7", color: item.type === "Customer" ? "#0369A1" : item.type === "Vehicle" ? "#B45309" : "#15803D" }}>
+                                  {item.type.toUpperCase()}
+                                </span>
+                              </div>
                             ))}
                           </div>
                         )}
                       </div>
-                    </div>
+                    ) : (
+                      <div style={{ fontSize: 11.5, fontWeight: 600, color: "#6B7280", display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <span style={{ textTransform: "uppercase", letterSpacing: "0.05em", color: "#9CA3AF" }}>Recent Searches:</span>
+                        <span style={{ color: "#111827", cursor: "pointer" }} onClick={() => setSearchQuery("WBA53BK")}>VIN: WBA53BK...</span>
+                        <span style={{ color: "#111827", cursor: "pointer" }} onClick={() => setSearchQuery("Elena")}>Customer: Elena Rossi</span>
+                        <span style={{ color: "#111827", cursor: "pointer" }} onClick={() => setSearchQuery("Piston-Kit")}>Part: V6-Piston-Kit</span>
+                      </div>
+                    )}
 
-                    <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em" }}>
-                      {act.time}
-                    </div>
                   </div>
-                ))}
-              </div>
 
-            </div>
+                  {/* Right Column: Action Buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    
+                    {/* Action 1: Sell Parts */}
+                    <button
+                      onClick={() => setIsSellModalOpen(true)}
+                      style={{
+                        width: "100%",
+                        background: "#111827",
+                        border: "none",
+                        borderRadius: 14,
+                        padding: "20px 24px",
+                        textAlign: "left",
+                        color: "#FFFFFF",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        boxShadow: "0 6px 20px rgba(17,24,39,0.15)",
+                        transition: "transform 0.15s ease, background 0.15s ease",
+                        fontFamily: "inherit"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.background = "#1F2937";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.background = "#111827";
+                      }}
+                    >
+                      <div>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Sell Parts</p>
+                        <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>Direct POS terminal</p>
+                      </div>
+                      <ShoppingCart className="w-5 h-5 text-white" />
+                    </button>
+
+                    {/* Action 2: Register Customer */}
+                    <button
+                      onClick={() => setIsCrmModalOpen(true)}
+                      style={{
+                        width: "100%",
+                        background: "#E5E7EB",
+                        border: "none",
+                        borderRadius: 14,
+                        padding: "20px 24px",
+                        textAlign: "left",
+                        color: "#111827",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        transition: "transform 0.15s ease, background 0.15s ease",
+                        fontFamily: "inherit"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.background = "#D1D5DB";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.background = "#E5E7EB";
+                      }}
+                    >
+                      <div>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Register Customer</p>
+                        <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#6B7280", fontWeight: 500 }}>Create CRM profile</p>
+                      </div>
+                      <UserPlus className="w-5 h-5 text-gray-800" />
+                    </button>
+
+                    {/* Action 3: Search Vehicle */}
+                    <button
+                      onClick={() => showNotification("OBD Telemetry details loaded! Check Customer Activity feed below.")}
+                      style={{
+                        width: "100%",
+                        background: "#E5E7EB",
+                        border: "none",
+                        borderRadius: 14,
+                        padding: "20px 24px",
+                        textAlign: "left",
+                        color: "#111827",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        transition: "transform 0.15s ease, background 0.15s ease",
+                        fontFamily: "inherit"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.background = "#D1D5DB";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.background = "#E5E7EB";
+                      }}
+                    >
+                      <div>
+                        <p style={{ margin: 0, fontSize: 14, fontWeight: 800 }}>Search Vehicle</p>
+                        <p style={{ margin: "4px 0 0 0", fontSize: 11, color: "#6B7280", fontWeight: 500 }}>Service history & specs</p>
+                      </div>
+                      <Car className="w-5 h-5 text-gray-800" />
+                    </button>
+
+                  </div>
+
+                </div>
+
+                {/* ── Customer Activity Feed Panel (Bottom Column) ── */}
+                <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: "28px 32px", boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                  
+                  {/* Feed Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0, letterSpacing: "-0.3px" }}>Customer Activity Feed</h2>
+                    <button 
+                      onClick={() => showNotification("Retrieving complete history logs database...")}
+                      style={{ background: "none", border: "none", fontSize: 10.5, fontWeight: 800, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em", cursor: "pointer", fontFamily: "inherit" }}
+                    >
+                      View All Logs
+                    </button>
+                  </div>
+
+                  {/* Activity Cards List */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {activities.map((act) => (
+                      <div 
+                        key={act.id} 
+                        style={{ 
+                          background: "#F9FAFB", 
+                          border: "1px solid #F3F4F6", 
+                          borderRadius: 12, 
+                          padding: "18px 24px", 
+                          display: "flex", 
+                          justifyContent: "space-between", 
+                          alignItems: "center" 
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                          <div style={{ width: 42, height: 42, background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                            {act.type === "purchase" ? "📦" : act.type === "refund" ? "🔄" : "📅"}
+                          </div>
+                          <div>
+                            <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>
+                              <strong style={{ fontWeight: 800 }}>{act.customerName}</strong> {act.actionText} <strong style={{ fontWeight: 800 }}>{act.targetObject}</strong>
+                            </p>
+                            <p style={{ margin: "4px 0 0 0", fontSize: 11.5, color: "#6B7280", fontWeight: 500 }}>{act.subtext}</p>
+                            
+                            {/* Badges */}
+                            {act.badges.length > 0 && (
+                              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                                {act.badges.map((b) => (
+                                  <span 
+                                    key={b} 
+                                    style={{ 
+                                      fontSize: 9, 
+                                      fontWeight: 800, 
+                                      padding: "3px 8px", 
+                                      borderRadius: 4, 
+                                      background: b === "PAID" || b === "VERIFIED" ? "#DCFCE7" : b === "IN STOCK" ? "#E5E7EB" : "#FEE2E2", 
+                                      color: b === "PAID" || b === "VERIFIED" ? "#15803D" : b === "IN STOCK" ? "#4B5563" : "#B91C1C",
+                                      letterSpacing: "0.04em"
+                                    }}
+                                  >
+                                    {b}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.05em" }}>
+                          {act.time}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </>
+            )}
+
+            {activeTab === "Reports" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div>
+                    <h2 style={{ fontSize: 24, fontWeight: 800, margin: 0, letterSpacing: "-0.5px" }}>Customer Segment Analytics</h2>
+                    <p style={{ margin: "4px 0 0 0", fontSize: 13, color: "#6B7280" }}>Live segment analytics fetched from transaction history databases</p>
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      setLoadingReport(true);
+                      try {
+                        const res = await reportService.getCustomerReport();
+                        setCustomerReport(res);
+                        showNotification("Refreshed analytical report segments successfully!");
+                      } catch(e) {
+                        console.error(e);
+                      } finally {
+                        setLoadingReport(false);
+                      }
+                    }}
+                    style={{ padding: "8px 16px", background: "#111827", color: "#FFF", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    {loadingReport ? "Analyzing..." : "Refresh Segments"}
+                  </button>
+                </div>
+
+                {loadingReport && !customerReport ? (
+                  <div style={{ padding: "40px 0", textAlign: "center", fontSize: 14, color: "#6B7280", fontWeight: 500 }}>
+                    Fetching financial ledger details...
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 24 }}>
+                    
+                    {/* Segment 1: High Spenders */}
+                    <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                        <span style={{ fontSize: 18 }}>💎</span>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>High Spenders (Top Revenue Contributors)</h3>
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "2px solid #F3F4F6", color: "#6B7280" }}>
+                              <th style={{ padding: "10px 12px" }}>Customer Name</th>
+                              <th style={{ padding: "10px 12px" }}>Email</th>
+                              <th style={{ padding: "10px 12px" }}>Phone</th>
+                              <th style={{ padding: "10px 12px", textAlign: "right" }}>Total Spent</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {customerReport?.highSpenders?.length > 0 ? (
+                              customerReport.highSpenders.map((cust: any) => (
+                                <tr key={cust.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                                  <td style={{ padding: "12px 12px", fontWeight: 700 }}>{cust.name}</td>
+                                  <td style={{ padding: "12px 12px", color: "#6B7280" }}>{cust.email}</td>
+                                  <td style={{ padding: "12px 12px" }}>{cust.phone || "N/A"}</td>
+                                  <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 800, color: "#10B981" }}>RS {cust.totalSpent.toFixed(2)}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={4} style={{ padding: "20px 12px", textAlign: "center", color: "#9CA3AF" }}>No high spenders recorded. Complete invoices to generate revenue data.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Segment 2: Regular Customers */}
+                    <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                        <span style={{ fontSize: 18 }}>🔄</span>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Regular Customers (Most Frequent Buyers)</h3>
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "2px solid #F3F4F6", color: "#6B7280" }}>
+                              <th style={{ padding: "10px 12px" }}>Customer Name</th>
+                              <th style={{ padding: "10px 12px" }}>Email</th>
+                              <th style={{ padding: "10px 12px" }}>Phone</th>
+                              <th style={{ padding: "10px 12px", textAlign: "right" }}>Invoices Issued</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {customerReport?.regulars?.length > 0 ? (
+                              customerReport.regulars.map((cust: any) => (
+                                <tr key={cust.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                                  <td style={{ padding: "12px 12px", fontWeight: 700 }}>{cust.name}</td>
+                                  <td style={{ padding: "12px 12px", color: "#6B7280" }}>{cust.email}</td>
+                                  <td style={{ padding: "12px 12px" }}>{cust.phone || "N/A"}</td>
+                                  <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 800, color: "#3B82F6" }}>{cust.purchaseCount} purchases</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={4} style={{ padding: "20px 12px", textAlign: "center", color: "#9CA3AF" }}>No regular customers recorded.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Segment 3: Pending Credits */}
+                    <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 24, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+                        <span style={{ fontSize: 18 }}>⚠️</span>
+                        <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>Pending Credits (Outstanding Balances)</h3>
+                      </div>
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, textAlign: "left" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "2px solid #F3F4F6", color: "#6B7280" }}>
+                              <th style={{ padding: "10px 12px" }}>Customer Name</th>
+                              <th style={{ padding: "10px 12px" }}>Email</th>
+                              <th style={{ padding: "10px 12px" }}>Unpaid Invoices</th>
+                              <th style={{ padding: "10px 12px", textAlign: "right" }}>Pending Balance</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {customerReport?.pendingCredits?.length > 0 ? (
+                              customerReport.pendingCredits.map((cust: any) => (
+                                <tr key={cust.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                                  <td style={{ padding: "12px 12px", fontWeight: 700 }}>{cust.name}</td>
+                                  <td style={{ padding: "12px 12px", color: "#6B7280" }}>{cust.email}</td>
+                                  <td style={{ padding: "12px 12px", fontWeight: 600 }}>{cust.unpaidInvoiceCount} invoices pending</td>
+                                  <td style={{ padding: "12px 12px", textAlign: "right", fontWeight: 800, color: "#EF4444" }}>RS {cust.pendingBalance.toFixed(2)}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={4} style={{ padding: "20px 12px", textAlign: "center", color: "#9CA3AF" }}>No pending credits. All customer accounts are fully paid!</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "Performance" && (
+              <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 16, padding: 32, boxShadow: "0 4px 20px rgba(0,0,0,0.02)" }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 8px 0" }}>Technician Performance Dashboard</h2>
+                <p style={{ margin: 0, fontSize: 13, color: "#6B7280", marginBottom: 24 }}>Real-time service ticket turnaround and shop floor efficiency levels</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  <div style={{ padding: 20, border: "1px solid #E5E7EB", borderRadius: 12 }}>
+                    <h4 style={{ margin: 0, fontSize: 12, color: "#6B7280", textTransform: "uppercase" }}>Average Turnaround Time</h4>
+                    <p style={{ margin: "8px 0 0 0", fontSize: 28, fontWeight: 800 }}>1.4 Hours</p>
+                  </div>
+                  <div style={{ padding: 20, border: "1px solid #E5E7EB", borderRadius: 12 }}>
+                    <h4 style={{ margin: 0, fontSize: 12, color: "#6B7280", textTransform: "uppercase" }}>Work Orders Completed</h4>
+                    <p style={{ margin: "8px 0 0 0", fontSize: 28, fontWeight: 800 }}>142 Ticket Items</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
 
@@ -704,16 +944,21 @@ const StaffDashboard: FC = () => {
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Select Part Component</label>
                 <select 
-                  value={posData.partName}
-                  onChange={e => {
-                    const price = e.target.value === "Clutch Assembly Kit" ? 420.00 : e.target.value === "V6 Piston Kit" ? 280.00 : 120.00;
-                    setPosData(prev => ({ ...prev, partName: e.target.value, price }));
-                  }}
+                  value={selectedPartId}
+                  onChange={e => setSelectedPartId(e.target.value)}
                   style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, background: "#FFFFFF", outline: "none" }}
                 >
-                  <option value="Clutch Assembly Kit">Clutch Assembly Kit (RS 420.00)</option>
-                  <option value="V6 Piston Kit">V6 Piston Kit (RS 280.00)</option>
-                  <option value="Heavy Duty Brake Pads">Heavy Duty Brake Pads (RS 120.00)</option>
+                  {dbParts.length > 0 ? (
+                    dbParts.map(p => (
+                      <option key={p.id} value={String(p.id)}>{p.name} (RS {p.price.toFixed(2)})</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="1">Clutch Assembly Kit (RS 420.00)</option>
+                      <option value="2">V6 Piston Kit (RS 280.00)</option>
+                      <option value="3">Heavy Duty Brake Pads (RS 120.00)</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -745,32 +990,50 @@ const StaffDashboard: FC = () => {
               </div>
 
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Customer Name</label>
-                <input 
-                  type="text" 
-                  value={posData.customerName}
-                  onChange={e => setPosData(prev => ({ ...prev, customerName: e.target.value }))}
-                  placeholder="e.g. Elena Rossi"
-                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, outline: "none", boxSizing: "border-box" }}
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Customer Name *</label>
+                <select
+                  value={selectedCustomerId}
+                  onChange={e => setSelectedCustomerId(e.target.value)}
+                  style={{ width: "100%", padding: 11, border: "1.5px solid #E5E7EB", borderRadius: 8, fontSize: 13.5, background: "#FFFFFF", outline: "none" }}
                   required
-                />
+                >
+                  {dbCustomers.length > 0 ? (
+                    dbCustomers.map(c => (
+                      <option key={c.id} value={String(c.id)}>{c.fullName} ({c.email})</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="1">Elena Rossi (elena.rossi@gmail.com)</option>
+                      <option value="2">Marcus Chen (m.chen@outlook.com)</option>
+                      <option value="3">Sarah Jenkins (s.jenkins@yahoo.com)</option>
+                    </>
+                  )}
+                </select>
               </div>
 
               {/* POS Summary */}
-              <div style={{ padding: 16, background: "#F9FAFB", borderRadius: 10, marginTop: 8, fontSize: 13 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ color: "#6B7280" }}>Subtotal:</span>
-                  <span style={{ fontWeight: 700 }}>RS {(posData.price * posData.quantity).toFixed(2)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span style={{ color: "#6B7280" }}>Discount Applied:</span>
-                  <span style={{ fontWeight: 700, color: "#EF4444" }}>-RS {((posData.price * posData.quantity) * (posData.discount / 100)).toFixed(2)}</span>
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #E5E7EB", paddingTop: 8, fontSize: 14, fontWeight: 800 }}>
-                  <span>Total Amount:</span>
-                  <span>RS {(posData.price * posData.quantity * (1 - posData.discount / 100)).toFixed(2)}</span>
-                </div>
-              </div>
+              {(() => {
+                const part = dbParts.find(p => String(p.id) === selectedPartId) || { price: 420.00 };
+                const sub = part.price * posData.quantity;
+                const disc = sub * (posData.discount / 100);
+                const tot = sub - disc;
+                return (
+                  <div style={{ padding: 16, background: "#F9FAFB", borderRadius: 10, marginTop: 8, fontSize: 13 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ color: "#6B7280" }}>Subtotal:</span>
+                      <span style={{ fontWeight: 700 }}>RS {sub.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ color: "#6B7280" }}>Discount Applied:</span>
+                      <span style={{ fontWeight: 700, color: "#EF4444" }}>-RS {disc.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #E5E7EB", paddingTop: 8, fontSize: 14, fontWeight: 800 }}>
+                      <span>Total Amount:</span>
+                      <span>RS {tot.toFixed(2)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
                 <button type="button" onClick={() => setIsSellModalOpen(false)} style={{ flex: 1, padding: 12, border: "1.5px solid #E5E7EB", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", fontSize: 13, fontWeight: 600, fontFamily: "inherit" }}>Cancel</button>

@@ -4,15 +4,29 @@ import {
   Star, 
   CheckCircle2, 
   AlertTriangle,
-  ShoppingBag,
-  Clock
+  ShoppingBag
 } from 'lucide-react';
 import customerService from '../../services/customerService';
 
+export interface ServiceHistoryItem {
+  appointmentDate: string;
+  vehicleName: string;
+  licensePlate: string;
+  notes?: string;
+  status: string;
+}
+
+export interface TransactionItem {
+  date: string;
+  orderId: string;
+  title: string;
+  price: string;
+}
+
 interface CustomerHistoryProps {
   customerId: number | null;
-  dbServiceHistory: any[];
-  transactions: any[];
+  dbServiceHistory: ServiceHistoryItem[];
+  transactions: TransactionItem[];
   fetchData: () => void;
 }
 
@@ -26,7 +40,7 @@ export const CustomerHistory: FC<CustomerHistoryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
 
   // Service Feedback Modal States
-  const [selectedAppointmentForReview, setSelectedAppointmentForReview] = useState<any | null>(null);
+  const [selectedAppointmentForReview, setSelectedAppointmentForReview] = useState<ServiceHistoryItem | null>(null);
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [reviewComment, setReviewComment] = useState<string>('');
   const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
@@ -54,8 +68,9 @@ export const CustomerHistory: FC<CustomerHistoryProps> = ({
         setSelectedAppointmentForReview(null);
         setReviewSuccess(null);
       }, 2000);
-      
+
       fetchData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setReviewError(err.response?.data?.message || err.message || "Failed to submit feedback");
     } finally {

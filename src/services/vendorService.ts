@@ -32,6 +32,16 @@ const vendorService = {
     const response = await api.post<VendorResponse>("/Vendor", data);
     return response.data;
   },
+
+  update: async (id: number, data: CreateVendorRequest) => {
+    const response = await api.put<VendorResponse>(`/Vendor/${id}`, data);
+    return response.data;
+  },
+
+  delete: async (id: number) => {
+    const response = await api.delete(`/Vendor/${id}`);
+    return response.data;
+  },
 };
 
 export default vendorService;

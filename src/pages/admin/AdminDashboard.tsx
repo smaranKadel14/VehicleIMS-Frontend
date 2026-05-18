@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import type { FC } from 'react';
 import { 
   LayoutDashboard, 
@@ -22,9 +23,15 @@ import {
   FileText,
   UserPlus,
   Users,
-  ShieldCheck
+  ShieldCheck,
+  RefreshCcw,
+  Activity
 } from 'lucide-react';
 import authService from '../../services/authService';
+import reportService from '../../services/reportService';
+import type { FinancialReportResponse } from '../../services/reportService';
+import partService from '../../services/partService';
+import purchaseService from '../../services/purchaseService';
 
 // Helper Components
 const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
@@ -108,10 +115,93 @@ const AdminDashboard: FC = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
 
+  const [reportType, setReportType] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+  const [reportData, setReportData] = useState<FinancialReportResponse | null>(null);
+  const [stockAlerts, setStockAlerts] = useState<number>(0);
+  const [criticalItems, setCriticalItems] = useState<string>("All levels nominal");
+  const [purchaseCost, setPurchaseCost] = useState<number>(0);
+  const [pendingPurchasesCount, setPendingPurchasesCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch financial report for selected type
+      const finReport = await reportService.getFinancialReport(reportType);
+      setReportData(finReport);
+
+      // Fetch parts for stock alerts
+      const parts = await partService.getAll();
+      const lowStockParts = parts.filter(p => p.stockQuantity < 10);
+      setStockAlerts(lowStockParts.length);
+      
+      const lowStockNames = lowStockParts.slice(0, 2).map(p => p.name).join(", ");
+      setCriticalItems(lowStockParts.length > 0 
+        ? `Critical: ${lowStockNames}${lowStockParts.length > 2 ? ` +${lowStockParts.length - 2} more` : ""}` 
+        : "All levels nominal"
+      );
+
+      // Fetch purchase invoices for purchase cost
+      const purchases = await purchaseService.getAll();
+      const totalCost = purchases.reduce((sum, p) => sum + p.finalTotal, 0);
+      setPurchaseCost(totalCost);
+      setPendingPurchasesCount(purchases.length);
+
+    } catch (err: any) {
+      console.error("Error fetching admin dashboard data:", err);
+      const msg = err.response?.data?.message || err.message || "Unknown error";
+      setError(`Failed to fetch database records: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [reportType]);
+
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
   };
+
+  if (loading && !reportData) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <RefreshCcw className="w-12 h-12 text-primary animate-spin mx-auto text-black" />
+          <p className="font-heading font-extrabold text-xl animate-pulse tracking-widest">CONNECTING TO ENGINECORE DATABASE...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error && !reportData) {
+    return (
+      <div className="min-h-screen bg-[#F4F4F4] flex items-center justify-center p-6">
+        <div className="bg-white p-10 rounded-4xl border border-red-200 shadow-2xl max-w-lg text-center space-y-6">
+          <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mx-auto animate-bounce">
+             <Activity className="w-10 h-10 text-red-500" />
+          </div>
+          <h2 className="text-3xl font-heading font-extrabold tracking-tighter">Database Offline</h2>
+          <p className="text-primary/60 font-medium leading-relaxed">
+            We're unable to retrieve dynamic telemetry. 
+            Technical details: {error}
+          </p>
+          <button 
+            onClick={fetchDashboardData}
+            className="w-full bg-black text-neutral py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
       {/* Sidebar */}
@@ -208,11 +298,34 @@ const AdminDashboard: FC = () => {
                 <h2 className="text-4xl font-heading font-extrabold tracking-tighter">Operations Dashboard</h2>
                 <p className="text-base text-tertiary font-medium mt-1">Real-time telemetry and inventory metrics for V-Series components.</p>
               </div>
-              <div className="flex gap-4">
-                <button className="flex items-center gap-2 px-6 py-3 bg-white border border-secondary/30 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral transition-all shadow-sm">
+              <div className="flex items-center gap-4">
+                {/* Period Selector Toggle */}
+                <div className="bg-white border border-secondary/20 p-1 rounded-2xl flex gap-1 shadow-sm">
+                  {(['daily', 'monthly', 'yearly'] as const).map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setReportType(type)}
+                      className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                        reportType === type 
+                          ? 'bg-black text-white' 
+                          : 'text-tertiary hover:bg-[#F5F5F3] hover:text-black'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-6 py-3 bg-white border border-secondary/30 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neutral transition-all shadow-sm"
+                >
                   <Download className="w-4 h-4" /> Export Data
                 </button>
-                <button className="flex items-center gap-2 px-6 py-3 bg-black text-neutral rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95">
+                <button 
+                  onClick={() => navigate('/inventory')}
+                  className="flex items-center gap-2 px-6 py-3 bg-black text-neutral rounded-xl text-[10px] font-black uppercase tracking-widest hover:shadow-xl hover:-translate-y-1 transition-all active:scale-95"
+                >
                   <Plus className="w-4 h-4" /> New Part
                 </button>
               </div>
@@ -220,11 +333,41 @@ const AdminDashboard: FC = () => {
 
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 pb-4">
-              <AdminStatCard label="Total Sales" value="1,284" trend="+12.5% vs last month" icon={ShoppingBag} />
-              <AdminStatCard label="Monthly Revenue" value="RS 42,902" decimal=".00" trend="+8.2% vs last month" icon={CreditCard} />
-              <AdminStatCard label="Yearly Revenue" value="RS 512.4k" trend="+15% annual projection" icon={BarChart3} />
-              <AdminStatCard label="Purchase Cost" value="RS 12,450.00" trend="Processing 4 pending invoices" icon={FileText} variant="gray" />
-              <AdminStatCard label="Stock Alerts" value="18 Items" trend="Critical levels: Brake Pads, V8 Seals" icon={AlertCircle} variant="black" />
+              <AdminStatCard 
+                label={`${reportType} Sales`} 
+                value={reportData ? reportData.totalSalesCount.toLocaleString() : "0"} 
+                trend="From live database" 
+                icon={ShoppingBag} 
+              />
+              <AdminStatCard 
+                label={`${reportType} Revenue`} 
+                value={`RS ${(reportData ? reportData.totalRevenue : 0).toLocaleString()}`} 
+                decimal=".00" 
+                trend="From sales invoices" 
+                icon={CreditCard} 
+              />
+              <AdminStatCard 
+                label={`${reportType} Est. Profit`} 
+                value={`RS ${(reportData ? reportData.netProfit : 0).toLocaleString()}`} 
+                decimal=".00"
+                trend="40% profit margin" 
+                icon={BarChart3} 
+              />
+              <AdminStatCard 
+                label="Total Purchase Cost" 
+                value={`RS ${purchaseCost.toLocaleString()}`} 
+                decimal=".00"
+                trend={`Based on ${pendingPurchasesCount} invoices`} 
+                icon={FileText} 
+                variant="gray" 
+              />
+              <AdminStatCard 
+                label="Low Stock Alerts" 
+                value={`${stockAlerts} Items`} 
+                trend={criticalItems} 
+                icon={AlertCircle} 
+                variant="black" 
+              />
             </div>
 
             {/* Middle Row */}
@@ -233,38 +376,46 @@ const AdminDashboard: FC = () => {
               <div className="col-span-12 lg:col-span-8 bg-white rounded-5xl border border-secondary/20 p-10 shadow-sm relative overflow-hidden group">
                 <div className="flex justify-between items-center mb-12">
                   <div>
-                    <h3 className="text-2xl font-extrabold tracking-tight">Revenue vs Expense</h3>
-                    <p className="text-sm text-tertiary font-bold mt-1">FY 2024 Performance Analysis</p>
+                    <h3 className="text-2xl font-extrabold tracking-tight">Popular Parts Contribution</h3>
+                    <p className="text-sm text-tertiary font-bold mt-1">Telemetry analysis of top-performing assets</p>
                   </div>
                   <div className="flex gap-6">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-black rounded-full"></div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">Revenue</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 bg-secondary/30 rounded-full"></div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">Expense</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">Revenue Share</span>
                     </div>
                   </div>
                 </div>
                 
-                {/* Visual Placeholder for Chart */}
+                {/* Visual Popular Parts Bar Chart */}
                 <div className="h-[350px] w-full flex items-end justify-between px-4 pb-4">
-                  {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map((month, i) => (
-                    <div key={month} className="flex flex-col items-center gap-4 w-full">
-                      <div className="w-16 flex items-end gap-1.5 h-full relative group/bar">
-                        <div 
-                          className="w-full bg-black rounded-t-lg transition-all duration-700 delay-300 group-hover/bar:bg-primary" 
-                          style={{ height: `${[40, 65, 45, 85, 55, 75][i]}%` }}
-                        ></div>
-                        <div 
-                          className="w-full bg-secondary/20 rounded-t-lg transition-all duration-700 delay-500" 
-                          style={{ height: `${[25, 35, 30, 45, 20, 40][i]}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">{month}</span>
+                  {reportData && reportData.popularParts.length > 0 ? (
+                    reportData.popularParts.slice(0, 6).map((part) => {
+                      const maxRevenue = Math.max(...reportData.popularParts.map(p => p.revenueGenerated), 1);
+                      const percent = Math.max(10, Math.min(100, (part.revenueGenerated / maxRevenue) * 100));
+                      return (
+                        <div key={part.partId} className="flex flex-col items-center gap-4 w-full">
+                          <div className="w-16 flex items-end justify-center h-full relative group/bar">
+                            {/* Hover info tooltip */}
+                            <div className="absolute bottom-full mb-2 bg-black text-white text-[9px] font-black px-2 py-1 rounded opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-30 shadow-lg">
+                              Qty: {part.quantitySold} | RS {part.revenueGenerated.toLocaleString()}
+                            </div>
+                            <div 
+                              className="w-8 bg-black rounded-t-lg transition-all duration-700 hover:bg-primary cursor-pointer" 
+                              style={{ height: `${percent}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-[9px] font-black uppercase tracking-widest text-tertiary text-center w-20 truncate" title={part.name}>
+                            {part.name}
+                          </span>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-tertiary font-bold uppercase tracking-widest text-xs">
+                      No part sale statistics for this period
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
@@ -272,7 +423,9 @@ const AdminDashboard: FC = () => {
               <div className="col-span-12 lg:col-span-4 space-y-8">
                 <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary px-2">Quick Actions</h4>
                 <div className="space-y-4">
-                  <QuickActionItem icon={Plus} title="Add New Part" subtitle="UPDATE INVENTORY" />
+                  <div onClick={() => navigate('/inventory')}>
+                    <QuickActionItem icon={Plus} title="Add New Part" subtitle="UPDATE INVENTORY" />
+                  </div>
                   <div onClick={() => navigate('/purchases')}>
                     <QuickActionItem icon={FileText} title="Create Purchase Invoice" subtitle="ACCOUNTS PAYABLE" />
                   </div>
@@ -300,8 +453,6 @@ const AdminDashboard: FC = () => {
                 <h3 className="text-xl font-extrabold tracking-tight">Recent Activity Log</h3>
                 <div className="flex gap-4">
                    <button className="text-[10px] font-black uppercase tracking-widest text-primary border-b-2 border-primary pb-1">All Activity</button>
-                   <button className="text-[10px] font-black uppercase tracking-widest text-tertiary hover:text-primary transition-colors pb-1">Sales</button>
-                   <button className="text-[10px] font-black uppercase tracking-widest text-tertiary hover:text-primary transition-colors pb-1">Purchases</button>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -317,10 +468,31 @@ const AdminDashboard: FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-secondary/10">
-                    <ActivityRow id="#TRX-88219" entity="V8 Cylinder Gasket Set" sub="CLIENT: APEX RACING INTL" category="PERFORMANCE" time="Today, 02:14 PM" amount="RS 1,420.00" status="COMPLETED" />
-                    <ActivityRow id="#TRX-88218" entity="Bulk Order: Synthetic Oil 5W-30" sub="VENDOR: PETROGLOBAL SUPPLIERS" category="MAINTENANCE" time="Today, 11:05 AM" amount="RS 8,900.00" status="PENDING" />
-                    <ActivityRow id="#TRX-88217" entity="Carbon Fiber Spoiler Kit" sub="CLIENT: PRIVATE COLLECTOR" category="BODYWORK" time="Yesterday, 04:45 PM" amount="RS 2,100.00" status="COMPLETED" />
-                    <ActivityRow id="#TRX-88216" entity="Heavy Duty Brake Pads (Front)" sub="CLIENT: FLEET RENTAL GROUP" category="BRAKING" time="Yesterday, 09:20 AM" amount="RS 450.00" status="FLAGGED" />
+                    {reportData && reportData.transactions.length > 0 ? (
+                      reportData.transactions.map((tx) => (
+                        <ActivityRow 
+                          key={tx.invoiceId}
+                          id={`#${tx.invoiceNumber}`} 
+                          entity={tx.customerName} 
+                          sub={`INVOICE ID: ${tx.invoiceId}`} 
+                          category="SPARE PARTS" 
+                          time={new Date(tx.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })} 
+                          amount={`RS ${tx.amount.toLocaleString()}.00`} 
+                          status={tx.isPaid ? "COMPLETED" : "PENDING"} 
+                        />
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={6} className="px-8 py-12 text-center text-tertiary font-bold uppercase tracking-widest text-xs">
+                          No transactions found for this period in database.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

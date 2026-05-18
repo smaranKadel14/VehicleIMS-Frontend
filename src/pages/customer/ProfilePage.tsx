@@ -5,10 +5,7 @@ import authService from "../../services/authService";
 import {
   Bell,
   LayoutDashboard,
-  Package,
   Wrench,
-  Truck,
-  BarChart3,
   Settings,
   LogOut,
   LockKeyhole,

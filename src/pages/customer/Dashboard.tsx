@@ -1,11 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ComponentType } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import type { FC } from 'react';
 import { 
   LayoutDashboard, 
-  Package, 
   Wrench, 
-  Truck, 
   BarChart3, 
   Settings, 
   LogOut, 
@@ -31,6 +29,7 @@ import authService from '../../services/authService';
 import customerService from '../../services/customerService';
 import { CustomerServices } from './CustomerServices';
 import { CustomerHistory } from './CustomerHistory';
+import type { ServiceHistoryItem } from './CustomerHistory';
 
 const CustomerDashboard: FC = () => {
   const navigate = useNavigate();
@@ -45,7 +44,7 @@ const CustomerDashboard: FC = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
-  const [dbServiceHistory, setDbServiceHistory] = useState<any[]>([]);
+  const [dbServiceHistory, setDbServiceHistory] = useState<ServiceHistoryItem[]>([]);
 
   // Telemetry & Loading States
   const [loading, setLoading] = useState(true);
@@ -79,6 +78,7 @@ const CustomerDashboard: FC = () => {
           setDbServiceHistory(historyData.serviceHistory || []);
         }
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
       const message = err.response?.data?.message || err.message || "Unknown error";
@@ -94,10 +94,17 @@ const CustomerDashboard: FC = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
-    if (location.state && (location.state as any).activeView) {
-      setActiveView((location.state as any).activeView);
+    
+    interface LocationState {
+      activeView?: 'dashboard' | 'services' | 'history';
     }
+    const state = location.state as LocationState;
+    if (state && state.activeView) {
+      setActiveView(state.activeView);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
 
   if (loading && !stats) {
@@ -511,14 +518,7 @@ const CustomerDashboard: FC = () => {
 };
 
 // Helper Components
-const NavLink = ({ label, active = false }: { label: string, active?: boolean }) => (
-  <button className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${active ? 'text-primary' : 'text-tertiary hover:text-primary'}`}>
-    {label}
-    {active && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full animate-fade-in"></span>}
-  </button>
-);
-
-const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: any, badge?: boolean, onClick?: () => void }) => (
+const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: ComponentType<{ className?: string }>, badge?: boolean, onClick?: () => void }) => (
   <button 
     onClick={onClick}
     className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group"
@@ -528,7 +528,7 @@ const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: any, badge?:
   </button>
 );
 
-const TelemetryStat = ({ label, value, icon: Icon, color = "text-primary" }: { label: string, value: string, icon: any, color?: string }) => (
+const TelemetryStat = ({ label, value, icon: Icon, color = "text-primary" }: { label: string, value: string, icon: ComponentType<{ className?: string }>, color?: string }) => (
   <div className="p-8 group hover:bg-secondary/5 transition-colors cursor-default">
     <div className="flex items-center gap-3 mb-2">
       <Icon className="w-4 h-4 text-tertiary group-hover:text-primary transition-colors" />
@@ -561,7 +561,7 @@ const AppointmentItem = ({ title, location, date, time, active = false }: { titl
   </div>
 );
 
-const PurchaseItem = ({ title, id, date, price, icon: Icon }: { title: string, id: string, date: string, price: string, icon: any }) => (
+const PurchaseItem = ({ title, id, date, price, icon: Icon }: { title: string, id: string, date: string, price: string, icon: ComponentType<{ className?: string }> }) => (
   <div className="p-6 flex items-center justify-between group cursor-pointer hover:bg-secondary/5 transition-colors">
     <div className="flex items-center gap-5">
       <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center group-hover:bg-black group-hover:text-neutral transition-all duration-150 ease-out shadow-inner">
@@ -576,7 +576,7 @@ const PurchaseItem = ({ title, id, date, price, icon: Icon }: { title: string, i
   </div>
 );
 
-const StatCard = ({ label, value, trend, trendUp = true, icon: Icon, delay = "" }: { label: string, value: string, trend: string, trendUp?: boolean, icon: any, delay?: string }) => (
+const StatCard = ({ label, value, trend, trendUp = true, icon: Icon, delay = "" }: { label: string, value: string, trend: string, trendUp?: boolean, icon: ComponentType<{ className?: string }>, delay?: string }) => (
   <div className={`bg-white rounded-3xl p-6 border border-secondary/20 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-100 hover:duration-200 ease-out group animate-slide-up ${delay} cursor-default`}>
     <div className="w-11 h-11 bg-secondary/5 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-neutral transition-all duration-100 hover:duration-200 ease-out shadow-inner group-hover:rotate-12">
       <Icon className="w-5 h-5" />
@@ -591,7 +591,7 @@ const StatCard = ({ label, value, trend, trendUp = true, icon: Icon, delay = "" 
   </div>
 );
 
-const FooterLink = ({ icon: Icon, label }: { icon: any, label: string }) => (
+const FooterLink = ({ icon: Icon, label }: { icon: ComponentType<{ className?: string }>, label: string }) => (
   <button className="hover:text-primary transition-colors flex items-center gap-2 group text-left">
     <Icon className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" /> 
     <span className="opacity-80 group-hover:opacity-100">{label}</span>

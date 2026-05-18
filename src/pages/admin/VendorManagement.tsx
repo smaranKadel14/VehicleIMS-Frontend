@@ -337,32 +337,34 @@ export default function VendorManagement() {
     }
   };
 
-  const handleEdit = (data: VendorFormData) => {
+  const handleEdit = async (data: VendorFormData) => {
     if (modal === null || modal === "add" || !("edit" in modal)) return;
     const id = modal.edit.id;
-    setVendors((prev) =>
-      prev.map((v) =>
-        v.id !== id ? v : {
-          ...v,
-          name:     data.name.trim(),
-          initials: makeInitials(data.name),
-          vendorId: data.vendorId.trim() || v.vendorId,
-          contact:  data.contact.trim(),
-          email:    data.email.trim(),
-          rating:   Math.min(5, Math.max(1, parseFloat(data.rating) || v.rating)),
-          status:   data.status,
-          category: data.category,
-        }
-      )
-    );
-    setModal(null);
+    try {
+      await vendorService.update(id, {
+        name: data.name.trim(),
+        contactPerson: data.contact.trim(),
+        email: data.email.trim(),
+        phone: "N/A",
+        address: "N/A"
+      });
+      await fetchVendors();
+      setModal(null);
+    } catch (err) {
+      console.error("Error updating vendor:", err);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (modal === null || modal === "add" || !("delete" in modal)) return;
     const id = modal.delete.id;
-    setVendors((prev) => prev.filter((v) => v.id !== id));
-    setModal(null);
+    try {
+      await vendorService.delete(id);
+      await fetchVendors();
+      setModal(null);
+    } catch (err) {
+      console.error("Error deleting vendor:", err);
+    }
   };
 
   const openEdit   = (vendor: Vendor) => { setModal({ edit: vendor });   setMenuOpen(null); };

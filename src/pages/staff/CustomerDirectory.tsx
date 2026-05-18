@@ -23,11 +23,23 @@ interface Customer {
 }
 
 interface CustomerFormData {
-  name:    string;
-  phone:   string;
-  status:  CustomerStatus;
-  plate1:  string;
-  plate2:  string;
+  firstName: string;
+  lastName: string;
+  username: string;
+  email: string;
+  phone: string;
+  address: string;
+  make: string;
+  model: string;
+  year: number;
+  vin: string;
+  licensePlate: string;
+  
+  // Backward compatibility mock overrides
+  name?: string;
+  status?: CustomerStatus;
+  plate1?: string;
+  plate2?: string;
 }
 
 type DrawerState  = Customer | null;
@@ -41,7 +53,6 @@ function makeInitials(name: string): string {
   return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-const EMPTY_FORM: CustomerFormData = { name: "", phone: "", status: "Active", plate1: "", plate2: "" };
 // Modal for creating new customers or modifying existing ones
 function CustomerModal({
   customer,
@@ -55,13 +66,39 @@ function CustomerModal({
   const [form, setForm] = useState<CustomerFormData>(
     customer
       ? {
-          name:   customer.name,
-          phone:  customer.phone,
+          firstName: customer.name.split(" ")[0] || "",
+          lastName: customer.name.split(" ").slice(1).join(" ") || "",
+          username: "",
+          email: "",
+          phone: customer.phone,
+          address: "",
+          make: "",
+          model: "",
+          year: new Date().getFullYear(),
+          vin: "",
+          licensePlate: customer.vehiclePlates[0] || "",
+          name: customer.name,
           status: customer.status,
           plate1: customer.vehiclePlates[0] ?? "",
           plate2: customer.vehiclePlates[1] ?? "",
         }
-      : { ...EMPTY_FORM }
+      : {
+          firstName: "",
+          lastName: "",
+          username: "",
+          email: "",
+          phone: "",
+          address: "",
+          make: "",
+          model: "",
+          year: new Date().getFullYear(),
+          vin: "",
+          licensePlate: "",
+          name: "",
+          status: "Active",
+          plate1: "",
+          plate2: "",
+        }
   );
   const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
 
@@ -71,7 +108,16 @@ function CustomerModal({
 
   const validate = (): boolean => {
     const e: Partial<CustomerFormData> = {};
-    if (!form.name.trim())  e.name  = "Customer name is required";
+    if (!customer) {
+      if (!form.firstName.trim()) e.firstName = "First name is required";
+      if (!form.lastName.trim())  e.lastName  = "Last name is required";
+      if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+        e.email = "Valid email is required";
+      }
+      if (!form.licensePlate.trim()) e.licensePlate = "License plate is required";
+    } else {
+      if (!form.name?.trim()) e.name = "Full name is required";
+    }
     if (!form.phone.trim()) e.phone = "Phone number is required";
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -93,46 +139,100 @@ function CustomerModal({
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ background: "#fff", borderRadius: 16, padding: 32, width: 500, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "90vh", overflowY: "auto" }}>
+      <div style={{ background: "#fff", borderRadius: 16, padding: 32, width: customer ? 500 : 640, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{customer ? "Edit Customer" : "Add New Customer"}</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{customer ? "Edit Customer Details" : "Register Client & Vehicle"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#6b7280" }}>✕</button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          {/* Name */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label style={labelStyle}>Full Name / Company *</label>
-            <input value={form.name} onChange={set("name")} style={{ ...inputStyle, borderColor: errors.name ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. Jonathan Kalu" />
-            {errors.name && <p style={errStyle}>{errors.name}</p>}
-          </div>
-          {/* Phone */}
-          <div>
-            <label style={labelStyle}>Phone Number *</label>
-            <input value={form.phone} onChange={set("phone")} style={{ ...inputStyle, borderColor: errors.phone ? "#dc2626" : "#e5e7eb" }} placeholder="+1 (555) 000-0000" />
-            {errors.phone && <p style={errStyle}>{errors.phone}</p>}
-          </div>
-          {/* Status */}
-          <div>
-            <label style={labelStyle}>Status</label>
-            <select value={form.status} onChange={set("status")} style={{ ...inputStyle, background: "#fff" }}>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
-          </div>
-          {/* Vehicle plates */}
-          <div>
-            <label style={labelStyle}>Vehicle Plate 1</label>
-            <input value={form.plate1} onChange={set("plate1")} style={inputStyle} placeholder="e.g. KAL-1234" />
-          </div>
-          <div>
-            <label style={labelStyle}>Vehicle Plate 2 (optional)</label>
-            <input value={form.plate2} onChange={set("plate2")} style={inputStyle} placeholder="e.g. KAL-5678" />
-          </div>
+          {customer ? (
+            <>
+              {/* Edit Existing Customer Details (Local Only) */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>Full Name / Company *</label>
+                <input value={form.name} onChange={set("name")} style={{ ...inputStyle, borderColor: errors.name ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. Liam Vance" />
+                {errors.name && <p style={errStyle}>{errors.name}</p>}
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>Phone Number *</label>
+                <input value={form.phone} onChange={set("phone")} style={{ ...inputStyle, borderColor: errors.phone ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. +977 98..." />
+                {errors.phone && <p style={errStyle}>{errors.phone}</p>}
+              </div>
+              <div>
+                <label style={labelStyle}>Vehicle Plate 1</label>
+                <input value={form.plate1} onChange={set("plate1")} style={inputStyle} placeholder="e.g. BA-1-PA-1234" />
+              </div>
+              <div>
+                <label style={labelStyle}>Vehicle Plate 2</label>
+                <input value={form.plate2} onChange={set("plate2")} style={inputStyle} placeholder="e.g. BA-1-PA-5678" />
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Complete Database DTO Fields for Customer + Vehicle Registration */}
+              <div style={{ gridColumn: "1 / -1", borderBottom: "1.5px solid #f3f4f6", paddingBottom: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#111", letterSpacing: "0.05em" }}>1. CLIENT PROFILE DETAILS</span>
+              </div>
+              <div>
+                <label style={labelStyle}>First Name *</label>
+                <input value={form.firstName} onChange={set("firstName")} style={{ ...inputStyle, borderColor: errors.firstName ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. Liam" />
+                {errors.firstName && <p style={errStyle}>{errors.firstName}</p>}
+              </div>
+              <div>
+                <label style={labelStyle}>Last Name *</label>
+                <input value={form.lastName} onChange={set("lastName")} style={{ ...inputStyle, borderColor: errors.lastName ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. Vance" />
+                {errors.lastName && <p style={errStyle}>{errors.lastName}</p>}
+              </div>
+              <div>
+                <label style={labelStyle}>Username</label>
+                <input value={form.username} onChange={set("username")} style={inputStyle} placeholder="Auto-generated if empty" />
+              </div>
+              <div>
+                <label style={labelStyle}>Email Address *</label>
+                <input type="email" value={form.email} onChange={set("email")} style={{ ...inputStyle, borderColor: errors.email ? "#dc2626" : "#e5e7eb" }} placeholder="liam@gmail.com" />
+                {errors.email && <p style={errStyle}>{errors.email}</p>}
+              </div>
+              <div>
+                <label style={labelStyle}>Phone Number *</label>
+                <input value={form.phone} onChange={set("phone")} style={{ ...inputStyle, borderColor: errors.phone ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. +977 98..." />
+                {errors.phone && <p style={errStyle}>{errors.phone}</p>}
+              </div>
+              <div>
+                <label style={labelStyle}>Home Address</label>
+                <input value={form.address} onChange={set("address")} style={inputStyle} placeholder="Kathmandu, Nepal" />
+              </div>
+
+              <div style={{ gridColumn: "1 / -1", borderBottom: "1.5px solid #f3f4f6", paddingBottom: 6, marginTop: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#111", letterSpacing: "0.05em" }}>2. PRIMARY VEHICLE ASSET</span>
+              </div>
+              <div>
+                <label style={labelStyle}>Vehicle Make *</label>
+                <input value={form.make} onChange={set("make")} style={inputStyle} placeholder="e.g. Tesla" />
+              </div>
+              <div>
+                <label style={labelStyle}>Vehicle Model *</label>
+                <input value={form.model} onChange={set("model")} style={inputStyle} placeholder="e.g. Model Y" />
+              </div>
+              <div>
+                <label style={labelStyle}>Production Year</label>
+                <input type="number" value={form.year} onChange={set("year")} style={inputStyle} placeholder="2023" />
+              </div>
+              <div>
+                <label style={labelStyle}>Chassis VIN Code</label>
+                <input value={form.vin} onChange={set("vin")} style={inputStyle} placeholder="17-Digit VIN Number" />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>License Plate Code *</label>
+                <input value={form.licensePlate} onChange={set("licensePlate")} style={{ ...inputStyle, borderColor: errors.licensePlate ? "#dc2626" : "#e5e7eb" }} placeholder="e.g. BA-1-PA-9999" />
+                {errors.licensePlate && <p style={errStyle}>{errors.licensePlate}</p>}
+              </div>
+            </>
+          )}
         </div>
         <div style={{ display: "flex", gap: 12, marginTop: 28, justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{ padding: "10px 24px", border: "1.5px solid #e5e7eb", borderRadius: 8, background: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>Cancel</button>
           <button onClick={handleSave} style={{ padding: "10px 24px", background: "#111", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 14 }}>
-            {customer ? "Save Changes" : "Add Customer"}
+            {customer ? "Save Changes" : "Register Client"}
           </button>
         </div>
       </div>
@@ -310,30 +410,48 @@ export default function CustomerSearch() {
     return customers;
   }, [customers]);
 
-// Handlers for creating, reading, updating, and deleting entries
-  const handleAdd = (_data: CustomerFormData) => {
-    setModal(null);
+  const handleAdd = async (data: CustomerFormData) => {
+    try {
+      await customerService.register({
+        username: data.username.trim() || (data.firstName.toLowerCase() + data.lastName.toLowerCase() + Math.floor(Math.random() * 100)),
+        email: data.email.trim(),
+        passwordHash: "Client123!",
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        phone: data.phone.trim(),
+        address: data.address.trim() || "N/A",
+        make: data.make.trim() || "Generic",
+        model: data.model.trim() || "Model",
+        year: Number(data.year) || 2024,
+        vin: data.vin.trim() || "VIN-TEMP-1234",
+        licensePlate: data.licensePlate.trim(),
+      });
+      await fetchCustomers();
+      setModal(null);
+    } catch (err) {
+      console.error("Error registering customer:", err);
+    }
   };
 
   const handleEdit = (data: CustomerFormData) => {
     if (modal === null || modal === "add" || !("edit" in modal)) return;
     const id = modal.edit.id;
-    const plates = [data.plate1.trim(), data.plate2.trim()].filter(Boolean);
+    const plates = [data.plate1?.trim(), data.plate2?.trim()].filter(Boolean) as string[];
     setCustomers((prev) =>
       prev.map((c) =>
         c.id !== id ? c : {
           ...c,
-          name:          data.name.trim(),
+          name:          data.name?.trim() || `${data.firstName} ${data.lastName}`,
           phone:         data.phone.trim(),
-          initials:      makeInitials(data.name),
+          initials:      makeInitials(data.name || `${data.firstName} ${data.lastName}`),
           vehicles:      plates.length,
-          status:        data.status,
+          status:        data.status || "Active",
           vehiclePlates: plates,
         }
       )
     );
     // Update drawer if editing the currently-viewed customer
-    setDrawer((d) => d && d.id === id ? { ...d, name: data.name.trim(), phone: data.phone.trim(), initials: makeInitials(data.name), vehicles: plates.length, status: data.status, vehiclePlates: plates } : d);
+    setDrawer((d) => d && d.id === id ? { ...d, name: data.name?.trim() || `${data.firstName} ${data.lastName}`, phone: data.phone.trim(), initials: makeInitials(data.name || `${data.firstName} ${data.lastName}`), vehicles: plates.length, status: data.status || "Active", vehiclePlates: plates } : d);
     setModal(null);
   };
 
