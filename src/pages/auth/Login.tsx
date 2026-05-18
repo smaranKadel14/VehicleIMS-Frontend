@@ -23,6 +23,8 @@ const Login: React.FC = () => {
       const response = await authService.login(email, password);
       if (response.roles.includes('Admin')) {
         navigate('/admin-dashboard');
+      } else if (response.roles.includes('Staff')) {
+        navigate('/staff-dashboard');
       } else {
         navigate('/dashboard');
       }
