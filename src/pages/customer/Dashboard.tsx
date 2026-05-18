@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import type { FC } from 'react';
 import { 
   LayoutDashboard, 
@@ -28,13 +28,26 @@ import truckImg from '../../assets/customer-img/GT.png';
 import dashboardService from '../../services/dashboardService';
 import type { DashboardStats, Vehicle, Transaction } from '../../services/dashboardService';
 import authService from '../../services/authService';
+import customerService from '../../services/customerService';
+import { CustomerServices } from './CustomerServices';
+import { CustomerHistory } from './CustomerHistory';
 
 const CustomerDashboard: FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = authService.getCurrentUser();
+  
+  // Navigation State
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'history'>('dashboard');
+
+  // Backend States
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [customerId, setCustomerId] = useState<number | null>(null);
+  const [dbServiceHistory, setDbServiceHistory] = useState<any[]>([]);
+
+  // Telemetry & Loading States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,14 +55,30 @@ const CustomerDashboard: FC = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Get dashboard stats, vehicles and recent purchases
       const [statsData, vehiclesData, transactionsData] = await Promise.all([
         dashboardService.getStats(),
         dashboardService.getVehicles(),
         dashboardService.getRecentTransactions(),
       ]);
+      
       setStats(statsData);
       setVehicles(vehiclesData);
       setTransactions(transactionsData);
+
+      // Fetch the Customer ID by searching their username
+      if (user?.userName) {
+        const searchRes = await customerService.search(user.userName);
+        if (searchRes && searchRes.length > 0) {
+          const matchedCust = searchRes[0];
+          setCustomerId(matchedCust.id);
+          
+          // Fetch completed service history from DB
+          const historyData = await customerService.getHistory(matchedCust.id);
+          setDbServiceHistory(historyData.serviceHistory || []);
+        }
+      }
     } catch (err: any) {
       console.error("Error fetching dashboard data:", err);
       const message = err.response?.data?.message || err.message || "Unknown error";
@@ -66,7 +95,10 @@ const CustomerDashboard: FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    if (location.state && (location.state as any).activeView) {
+      setActiveView((location.state as any).activeView);
+    }
+  }, [location.state]);
 
   if (loading && !stats) {
     return (
@@ -101,6 +133,7 @@ const CustomerDashboard: FC = () => {
       </div>
     );
   }
+
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
       {/* Sidebar */}
@@ -118,20 +151,42 @@ const CustomerDashboard: FC = () => {
         </div>
 
         <nav className="flex-1 px-6 py-8 space-y-3">
-          <NavItem icon={LayoutDashboard} label="Dashboard" active delay="delay-[100ms]" />
-          <NavItem icon={Package} label="Inventory" delay="delay-[200ms]" />
-          <NavItem icon={Wrench} label="Work Orders" delay="delay-[300ms]" />
-          <NavItem icon={Truck} label="Logistics" delay="delay-[400ms]" />
-          <NavItem icon={BarChart3} label="Analytics" delay="delay-[500ms]" />
+          <button 
+            onClick={() => setActiveView('dashboard')}
+            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'dashboard' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+          >
+            <LayoutDashboard className="w-5 h-5" />
+            <span className="text-sm tracking-tight">Dashboard</span>
+          </button>
+          <button 
+            onClick={() => setActiveView('services')}
+            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'services' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+          >
+            <Wrench className="w-5 h-5" />
+            <span className="text-sm tracking-tight">Service Scheduler</span>
+          </button>
+          <button 
+            onClick={() => setActiveView('history')}
+            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'history' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+          >
+            <Clock className="w-5 h-5" />
+            <span className="text-sm tracking-tight">History & Reviews</span>
+          </button>
         </nav>
 
         <div className="px-6 py-8 border-t border-white/5 space-y-6">
-          <button className="w-full bg-neutral text-black py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 transition-all active:scale-95">
+          <button 
+            onClick={() => setActiveView('services')}
+            className="w-full bg-neutral text-black py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 transition-all active:scale-95"
+          >
             New Part Request
           </button>
           
           <div className="space-y-2">
-            <button className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left">
+            <button 
+              onClick={() => navigate('/profile')}
+              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left"
+            >
               <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" /> Settings
             </button>
             <button 
@@ -165,18 +220,38 @@ const CustomerDashboard: FC = () => {
 
           <div className="flex items-center gap-10">
             <nav className="flex items-center gap-10">
-              <NavLink label="Dashboard" active />
-              <NavLink label="Services" />
-              <NavLink label="History" />
-              <NavLink label="Support" />
+              <button 
+                onClick={() => setActiveView('dashboard')}
+                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'dashboard' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
+              >
+                Dashboard
+                {activeView === 'dashboard' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
+              </button>
+              <button 
+                onClick={() => setActiveView('services')}
+                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'services' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
+              >
+                Scheduler & Sourcing
+                {activeView === 'services' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
+              </button>
+              <button 
+                onClick={() => setActiveView('history')}
+                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'history' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
+              >
+                History & Reviews
+                {activeView === 'history' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
+              </button>
             </nav>
 
             <div className="flex items-center gap-6 pl-10 border-l border-secondary/20">
               <div className="flex gap-2">
                 <HeaderIcon icon={Bell} badge />
-                <HeaderIcon icon={Settings} />
+                <HeaderIcon icon={Settings} onClick={() => navigate('/profile')} />
               </div>
-              <div className="flex items-center gap-4 ml-2 group cursor-pointer">
+              <div 
+                onClick={() => navigate('/profile')}
+                className="flex items-center gap-4 ml-2 group cursor-pointer"
+              >
                 <div className="text-right">
                   <p className="font-black text-sm leading-none">{user?.userName || 'User'}</p>
                   <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Member'}</p>
@@ -188,206 +263,233 @@ const CustomerDashboard: FC = () => {
             </div>
           </div>
         </header>
-
+ 
+        {/* Dynamic Main Body Content */}
         <main className="flex-1 p-10">
           <div className="max-w-[1500px] mx-auto space-y-10">
-            
-            {/* Top Row */}
-            <div className="grid grid-cols-12 gap-8">
-              {/* Welcome Banner */}
-              <div className="col-span-12 lg:col-span-6 bg-white rounded-4xl p-10 relative overflow-hidden flex flex-col justify-between border border-secondary/20 shadow-sm animate-slide-up group">
-                  <div className="relative z-10">
-                    <span className="inline-block px-3 py-1 bg-primary/5 text-[10px] font-black text-primary uppercase tracking-[0.2em] rounded-full mb-4">Personal Portal</span>
-                    <h2 className="text-5xl font-heading font-extrabold mb-4 tracking-tighter">Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-primary/60">{user?.userName?.split(' ')[0] || 'Rider'}.</span></h2>
-                    <p className="text-primary/60 text-base max-w-md leading-relaxed font-medium">
-                      Your V-Series GT is currently in peak performance. All systems report nominal status for the upcoming season.
-                    </p>
-                  </div>
-                <div className="flex gap-4 relative z-10">
-                  <button className="bg-black text-neutral px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95">
-                    Schedule Checkup
-                  </button>
-                  <button className="bg-[#F5F5F3] text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#EDEDED] transition-all active:scale-95">
-                    View Fleet
-                  </button>
-                </div>
-                {/* Visual Flair */}
-                <div className="absolute right-0 top-0 h-full w-full pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
-                   <div className="absolute top-10 right-10 w-64 h-64 bg-primary/5 rounded-full blur-[80px]"></div>
-                   <div className="absolute -bottom-10 right-20 w-48 h-48 bg-secondary/20 rounded-full blur-[60px]"></div>
-                </div>
-              </div>
-
-              {/* Pending Balance */}
-              <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-[#1A1A1A] text-neutral rounded-4xl p-8 flex flex-col justify-between border border-black shadow-2xl animate-slide-up delay-[100ms] group hover:scale-[1.02] transition-transform">
-                <div className="bg-white/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:rotate-12 transition-transform">
-                  <CreditCard className="w-6 h-6 text-neutral" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-neutral/50 mb-1">Pending Balance</p>
-                  <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #{stats?.lastInvoiceNumber || 'N/A'}</p>
-                  <p className="text-4xl font-heading font-extrabold tracking-tighter">RS {stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
-                </div>
-                <button className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl">
-                  Pay Balance
-                </button>
-              </div>
-
-              {/* Service Recommendation */}
-              <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-white rounded-4xl p-8 border border-secondary/20 shadow-sm flex flex-col justify-between animate-slide-up delay-[200ms] hover:border-primary/20 transition-colors">
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shadow-lg shadow-black/20">
-                      <Zap className="w-4 h-4 text-neutral fill-neutral" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/40">Enginecore AI</span>
-                  </div>
-                  <h3 className="text-xl font-extrabold mb-3 tracking-tight leading-tight">Brake Pad Inspection Required</h3>
-                  <p className="text-sm text-primary/60 leading-relaxed font-medium">
-                    Based on your recent 1,200km long-distance trip, we suggest a brake pad inspection within the next <span className="text-primary font-bold underline decoration-secondary">45 days</span>.
-                  </p>
-                </div>
-                <button className="text-primary text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all mt-6 group">
-                  Detailed Analysis <ArrowUpRight className="w-4 h-4 text-tertiary group-hover:text-primary transition-colors" />
-                </button>
-              </div>
-            </div>
-
-            {/* Middle Row */}
-            <div className="grid grid-cols-12 gap-8">
-              {/* Active Vehicles Section */}
-              <div className="col-span-12 lg:col-span-8 space-y-8 animate-slide-up delay-[300ms]">
-                <div className="flex justify-between items-end px-2">
-                  <div>
-                    <h3 className="text-3xl font-heading font-extrabold tracking-tighter">Active Vehicles</h3>
-                    <p className="text-base text-tertiary font-medium">Real-time status of your registered assets.</p>
-                  </div>
-                  <button className="px-5 py-2.5 bg-white border border-secondary/30 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all shadow-sm">
-                    Manage All
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-5xl overflow-hidden border border-secondary/20 shadow-sm group hover:shadow-2xl transition-all duration-150 ease-out">
-                  {vehicles.length > 0 ? (
-                    <>
-                      <div className="relative h-[400px] bg-[#F9F9F9] overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-secondary/5 to-transparent pointer-events-none"></div>
-                        
-                        <img src={vehicles[0].image || truckImg} alt={vehicles[0].name} className="w-full h-full object-contain p-12 drop-shadow-2xl group-hover:scale-105 transition-transform duration-700" />
-                        
-                        <div className="absolute top-10 right-10 flex items-center gap-3 bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-white shadow-xl animate-fade-in">
-                          <div className={`w-2.5 h-2.5 ${vehicles[0].status === 'In Operation' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-yellow-500'} rounded-full animate-pulse`}></div>
-                          <span className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">{vehicles[0].status}</span>
-                        </div>
-
-                        <div className="absolute bottom-10 left-12">
-                          <div className="inline-block px-3 py-1 bg-black text-neutral text-[9px] font-black uppercase tracking-widest rounded mb-3">Priority Asset</div>
-                          <h4 className="text-4xl font-heading font-extrabold text-black tracking-tighter">{vehicles[0].name}</h4>
-                          <p className="text-xs font-bold text-tertiary tracking-[0.25em] uppercase mt-2 opacity-80">VIN: {vehicles[0].vin}</p>
-                        </div>
+            {activeView === 'dashboard' && (
+              <>
+                {/* Top Row */}
+                <div className="grid grid-cols-12 gap-8 animate-fade-in">
+                  {/* Welcome Banner */}
+                  <div className="col-span-12 lg:col-span-6 bg-white rounded-4xl p-10 relative overflow-hidden flex flex-col justify-between border border-secondary/20 shadow-sm group">
+                      <div className="relative z-10">
+                        <span className="inline-block px-3 py-1 bg-primary/5 text-[10px] font-black text-primary uppercase tracking-[0.2em] rounded-full mb-4">Personal Portal</span>
+                        <h2 className="text-5xl font-heading font-extrabold mb-4 tracking-tighter">Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-primary/60">{user?.userName?.split(' ')[0] || 'Rider'}.</span></h2>
+                        <p className="text-primary/60 text-base max-w-md leading-relaxed font-medium">
+                          Your V-Series GT is currently in peak performance. All systems report nominal status for the upcoming season.
+                        </p>
                       </div>
-                      
-                      <div className="grid grid-cols-3 border-t border-secondary/10 bg-white">
-                        <TelemetryStat label="Engine Health" value={vehicles[0].engineHealth} icon={Activity} color={vehicles[0].engineHealth.includes('Nominal') ? "text-green-500" : "text-primary"} />
-                        <TelemetryStat label="Tire Pressure" value={vehicles[0].tirePressure} icon={Gauge} />
-                        <TelemetryStat label="Odometer" value={vehicles[0].odometer} icon={Clock} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="h-[400px] flex items-center justify-center bg-[#F9F9F9]">
-                      <p className="text-tertiary font-bold uppercase tracking-widest">No active vehicles found</p>
+                    <div className="flex gap-4 relative z-10">
+                      <button 
+                        onClick={() => setActiveView('services')}
+                        className="bg-black text-neutral px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:shadow-2xl hover:-translate-y-1 transition-all active:scale-95"
+                      >
+                        Schedule Checkup
+                      </button>
+                      <button 
+                        onClick={() => navigate('/profile')}
+                        className="bg-[#F5F5F3] text-black px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-[#EDEDED] transition-all active:scale-95"
+                      >
+                        View Profile
+                      </button>
                     </div>
-                  )}
-
-                  <button className="w-full py-5 bg-[#F9F9F9] text-tertiary text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-black hover:text-white transition-all duration-150 ease-out border-t border-secondary/10">
-                    <BarChart3 className="w-4 h-4" /> View Full Telemetry Data
-                  </button>
-                </div>
-              </div>
-
-              {/* Right Side Panel */}
-              <div className="col-span-12 lg:col-span-4 space-y-10">
-                {/* Appointments */}
-                <section className="animate-slide-up delay-[400ms]">
-                  <div className="flex justify-between items-center mb-6 px-2">
-                    <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary">Appointments</h4>
-                    <span className="bg-secondary/20 text-primary text-xs font-black px-3 py-1 rounded-lg">02</span>
-                  </div>
-                  <div className="space-y-4">
-                    <AppointmentItem 
-                      title="Oil & Filter Exchange" 
-                      location="Mainland Service Center A1" 
-                      date="Oct 24" 
-                      time="09:00 AM"
-                      active
-                    />
-                    <AppointmentItem 
-                      title="Annual Inspection" 
-                      location="Pending Confirmation" 
-                      date="Nov 12" 
-                      time=""
-                    />
-                  </div>
-                </section>
-
-                {/* Recent Purchases */}
-                <section className="animate-slide-up delay-[500ms]">
-                  <div className="flex justify-between items-center mb-6 px-2">
-                    <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary">Recent Purchases</h4>
-                  </div>
-                  <div className="bg-white rounded-4xl border border-secondary/20 shadow-sm overflow-hidden group">
-                    <div className="divide-y divide-secondary/10">
-                      {transactions.length > 0 ? (
-                        transactions.map(tx => (
-                          <PurchaseItem 
-                            key={tx.id}
-                            title={tx.title} 
-                            id={tx.orderId} 
-                            date={tx.date} 
-                            price={tx.price} 
-                            icon={ShoppingBag}
-                          />
-                        ))
-                      ) : (
-                        <div className="p-8 text-center text-tertiary font-bold uppercase tracking-widest text-xs">
-                          No recent transactions
-                        </div>
-                      )}
+                    {/* Visual Flair */}
+                    <div className="absolute right-0 top-0 h-full w-full pointer-events-none opacity-40 group-hover:opacity-60 transition-opacity">
+                       <div className="absolute top-10 right-10 w-64 h-64 bg-primary/5 rounded-full blur-[80px]"></div>
+                       <div className="absolute -bottom-1 right-20 w-48 h-48 bg-secondary/20 rounded-full blur-[60px]"></div>
                     </div>
-                    <button className="w-full py-6 bg-secondary/10 text-tertiary text-xs font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-all duration-150 ease-out">
-                      Full Transaction History
+                  </div>
+
+                  {/* Pending Balance */}
+                  <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-[#1A1A1A] text-neutral rounded-4xl p-8 flex flex-col justify-between border border-black shadow-2xl group hover:scale-[1.02] transition-transform">
+                    <div className="bg-white/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:rotate-12 transition-transform">
+                      <CreditCard className="w-6 h-6 text-neutral" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-neutral/50 mb-1">Pending Balance</p>
+                      <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #{stats?.lastInvoiceNumber || 'N/A'}</p>
+                      <p className="text-4xl font-heading font-extrabold tracking-tighter">RS {stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
+                    </div>
+                    <button className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl">
+                      Pay Balance
                     </button>
                   </div>
-                </section>
-              </div>
-            </div>
 
-            {/* Bottom Row - 3 Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-8">
-              <StatCard 
-                label="Fuel Economy" 
-                value={`${stats?.fuelEconomy || '0'} L/100`} 
-                trend="FROM LAST MONTH" 
-                trendUp={false}
-                icon={Fuel}
-                delay="delay-[600ms]"
-              />
-              <StatCard 
-                label="Total Maintenance" 
-                value={`RS ${stats?.totalMaintenance.toLocaleString() || '0'}`} 
-                trend="SINCE REGISTRATION" 
-                icon={Wrench}
-                delay="delay-[700ms]"
-              />
-              <StatCard 
-                label="Next Service" 
-                value={`${stats?.nextServiceDistance.toLocaleString() || '0'} KM`} 
-                trend="ESTIMATED DISTANCE" 
-                icon={Gauge}
-                delay="delay-[800ms]"
-              />
-            </div>
+                  {/* Service Recommendation */}
+                  <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-white rounded-4xl p-8 border border-secondary/20 shadow-sm flex flex-col justify-between hover:border-primary/20 transition-colors">
+                    <div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-8 h-8 bg-black rounded-lg flex items-center justify-center shadow-lg shadow-black/20">
+                          <Zap className="w-4 h-4 text-neutral fill-neutral" />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-primary/40">Enginecore AI</span>
+                      </div>
+                      <h3 className="text-xl font-extrabold mb-3 tracking-tight leading-tight">Brake Pad Inspection Required</h3>
+                      <p className="text-sm text-primary/60 leading-relaxed font-medium">
+                        Based on your recent 1,200km long-distance trip, we suggest a brake pad inspection within the next <span className="text-primary font-bold underline decoration-secondary">45 days</span>.
+                      </p>
+                    </div>
+                    <button className="text-primary text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all mt-6 group">
+                      Detailed Analysis <ArrowUpRight className="w-4 h-4 text-tertiary group-hover:text-primary transition-colors" />
+                    </button>
+                  </div>
+                </div>
 
+                {/* Middle Row */}
+                <div className="grid grid-cols-12 gap-8 animate-fade-in delay-[100ms]">
+                  {/* Active Vehicles Section */}
+                  <div className="col-span-12 lg:col-span-8 space-y-8">
+                    <div className="flex justify-between items-end px-2">
+                      <div>
+                        <h3 className="text-3xl font-heading font-extrabold tracking-tighter">Active Vehicles</h3>
+                        <p className="text-base text-tertiary font-medium">Real-time status of your registered assets.</p>
+                      </div>
+                      <button className="px-5 py-2.5 bg-white border border-secondary/30 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all shadow-sm">
+                        Manage All
+                      </button>
+                    </div>
+
+                    <div className="bg-white rounded-5xl overflow-hidden border border-secondary/20 shadow-sm group hover:shadow-2xl transition-all duration-150 ease-out">
+                      {vehicles.length > 0 ? (
+                        <>
+                          <div className="relative h-[400px] bg-[#F9F9F9] overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-secondary/5 to-transparent pointer-events-none"></div>
+                            
+                            <img src={vehicles[0].image || truckImg} alt={vehicles[0].name} className="w-full h-full object-contain p-12 drop-shadow-2xl group-hover:scale-105 transition-transform duration-700" />
+                            
+                            <div className="absolute top-10 right-10 flex items-center gap-3 bg-white/60 backdrop-blur-md px-5 py-2.5 rounded-full border border-white shadow-xl animate-fade-in">
+                              <div className={`w-2.5 h-2.5 ${vehicles[0].status === 'In Operation' ? 'bg-green-500 shadow-[0_0_10px_#22c55e]' : 'bg-yellow-500'} rounded-full animate-pulse`}></div>
+                              <span className="text-[11px] font-black uppercase tracking-[0.15em] text-primary">{vehicles[0].status}</span>
+                            </div>
+
+                            <div className="absolute bottom-10 left-12">
+                              <div className="inline-block px-3 py-1 bg-black text-neutral text-[9px] font-black uppercase tracking-widest rounded mb-3">Priority Asset</div>
+                              <h4 className="text-4xl font-heading font-extrabold text-black tracking-tighter">{vehicles[0].name}</h4>
+                              <p className="text-xs font-bold text-tertiary tracking-[0.25em] uppercase mt-2 opacity-80">VIN: {vehicles[0].vin}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 border-t border-secondary/10 bg-white">
+                            <TelemetryStat label="Engine Health" value={vehicles[0].engineHealth} icon={Activity} color={vehicles[0].engineHealth.includes('Nominal') ? "text-green-500" : "text-primary"} />
+                            <TelemetryStat label="Tire Pressure" value={vehicles[0].tirePressure} icon={Gauge} />
+                            <TelemetryStat label="Odometer" value={vehicles[0].odometer} icon={Clock} />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="h-[400px] flex items-center justify-center bg-[#F9F9F9]">
+                          <p className="text-tertiary font-bold uppercase tracking-widest">No active vehicles found</p>
+                        </div>
+                      )}
+
+                      <button className="w-full py-5 bg-[#F9F9F9] text-tertiary text-[11px] font-black uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-black hover:text-white transition-all duration-150 ease-out border-t border-secondary/10">
+                        <BarChart3 className="w-4 h-4" /> View Full Telemetry Data
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Right Side Panel */}
+                  <div className="col-span-12 lg:col-span-4 space-y-10">
+                    {/* Appointments */}
+                    <section>
+                      <div className="flex justify-between items-center mb-6 px-2">
+                        <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary">Upcoming Bookings</h4>
+                      </div>
+                      <div className="space-y-4">
+                        <AppointmentItem 
+                          title="Oil & Filter Exchange" 
+                          location="Mainland Service Center A1" 
+                          date="Oct 24" 
+                          time="09:00 AM"
+                          active
+                        />
+                        <AppointmentItem 
+                          title="Annual Inspection" 
+                          location="Enginecore Tech Lab" 
+                          date="Nov 12" 
+                          time="11:30 AM"
+                        />
+                      </div>
+                    </section>
+
+                    {/* Recent Purchases */}
+                    <section>
+                      <div className="flex justify-between items-center mb-6 px-2">
+                        <h4 className="text-sm font-black uppercase tracking-[0.3em] text-tertiary">Recent Purchases</h4>
+                      </div>
+                      <div className="bg-white rounded-4xl border border-secondary/20 shadow-sm overflow-hidden group">
+                        <div className="divide-y divide-secondary/10">
+                          {transactions.length > 0 ? (
+                            transactions.map(tx => (
+                              <PurchaseItem 
+                                key={tx.id}
+                                title={tx.title} 
+                                id={tx.orderId} 
+                                date={tx.date} 
+                                price={tx.price} 
+                                icon={ShoppingBag}
+                              />
+                            ))
+                          ) : (
+                            <div className="p-8 text-center text-tertiary font-bold uppercase tracking-widest text-xs">
+                              No recent transactions
+                            </div>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => setActiveView('history')}
+                          className="w-full py-6 bg-secondary/10 text-tertiary text-xs font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-all duration-150 ease-out"
+                        >
+                          Full Transaction History
+                        </button>
+                      </div>
+                    </section>
+                  </div>
+                </div>
+
+                {/* Bottom Row - 3 Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pb-8 animate-fade-in delay-[200ms]">
+                  <StatCard 
+                    label="Fuel Economy" 
+                    value={`${stats?.fuelEconomy || '0'} L/100`} 
+                    trend="FROM LAST MONTH" 
+                    trendUp={false}
+                    icon={Fuel}
+                  />
+                  <StatCard 
+                    label="Total Maintenance" 
+                    value={`RS ${stats?.totalMaintenance.toLocaleString() || '0'}`} 
+                    trend="SINCE REGISTRATION" 
+                    icon={Wrench}
+                  />
+                  <StatCard 
+                    label="Next Service" 
+                    value={`${stats?.nextServiceDistance.toLocaleString() || '0'} KM`} 
+                    trend="ESTIMATED DISTANCE" 
+                    icon={Gauge}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* SERVICES VIEW: Scheduler & Unavailable Parts Sourcing */}
+            {activeView === 'services' && (
+              <CustomerServices 
+                customerId={customerId}
+                vehicles={vehicles}
+                fetchData={fetchData}
+              />
+            )}
+
+            {/* HISTORY VIEW: Completed Bookings & Star Quality Feedback */}
+            {activeView === 'history' && (
+              <CustomerHistory 
+                customerId={customerId}
+                dbServiceHistory={dbServiceHistory}
+                transactions={transactions}
+                fetchData={fetchData}
+              />
+            )}
           </div>
         </main>
 
@@ -409,13 +511,6 @@ const CustomerDashboard: FC = () => {
 };
 
 // Helper Components
-const NavItem = ({ icon: Icon, label, active = false, delay = "" }: { icon: any, label: string, active?: boolean, delay?: string }) => (
-  <button className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group animate-slide-up ${delay} ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}>
-    <Icon className={`w-5 h-5 transition-transform duration-150 ease-out ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
-    <span className="text-sm tracking-tight">{label}</span>
-  </button>
-);
-
 const NavLink = ({ label, active = false }: { label: string, active?: boolean }) => (
   <button className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${active ? 'text-primary' : 'text-tertiary hover:text-primary'}`}>
     {label}
@@ -423,8 +518,11 @@ const NavLink = ({ label, active = false }: { label: string, active?: boolean })
   </button>
 );
 
-const HeaderIcon = ({ icon: Icon, badge = false }: { icon: any, badge?: boolean }) => (
-  <button className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group">
+const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: any, badge?: boolean, onClick?: () => void }) => (
+  <button 
+    onClick={onClick}
+    className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group"
+  >
     <Icon className="w-5 h-5 group-active:scale-90 transition-transform" />
     {badge && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>}
   </button>
@@ -439,6 +537,7 @@ const TelemetryStat = ({ label, value, icon: Icon, color = "text-primary" }: { l
     <p className={`text-xl font-extrabold ${color} tracking-tight`}>{value}</p>
   </div>
 );
+
 const AppointmentItem = ({ title, location, date, time, active = false }: { title: string, location: string, date: string, time: string, active?: boolean }) => (
   <div className={`rounded-3xl p-6 transition-all duration-150 ease-out cursor-pointer hover:shadow-xl hover:-translate-y-1 border-l-[6px] border-transparent hover:border-black ${active ? 'bg-white shadow-sm' : 'bg-secondary/10 opacity-80 hover:bg-secondary/20 hover:opacity-100'}`}>
     <div className="flex justify-between items-start mb-2">
@@ -486,7 +585,6 @@ const StatCard = ({ label, value, trend, trendUp = true, icon: Icon, delay = "" 
     <p className="text-2xl font-heading font-extrabold mb-3 tracking-tighter">{value}</p>
     <div className="flex items-center gap-2">
       <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black tracking-widest ${trendUp ? 'bg-green-500/10 text-green-600' : 'bg-green-500/10 text-green-600'}`}>
-        {trend.includes('%') && (trendUp ? '↑ ' : '↓ ')}
         {trend}
       </div>
     </div>
