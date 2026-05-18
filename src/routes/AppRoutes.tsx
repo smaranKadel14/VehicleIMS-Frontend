@@ -2,14 +2,14 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
 import ForgotPassword from "../pages/auth/ForgotPassword";
-import VendorManagement from "../pages/VendorManagement";
-import CustomerDirectory from "../pages/CustomerDirectory";
-import CustomerHistory from "../pages/CustomerHistory";
+import VendorManagement from "../pages/admin/VendorManagement";
+import CustomerDirectory from "../pages/staff/CustomerDirectory";
 import InventoryManagement from "../pages/admin/InventoryManagement";
 import ProfilePage from "../pages/customer/ProfilePage";
 import CustomerDashboard from "../pages/customer/Dashboard";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import StaffManagement from "../pages/admin/StaffManagement";
+import StaffDashboard from "../pages/staff/StaffDashboard";
 import ProtectedRoute from "./ProtectedRoute";
 
 function AppRoutes() {
@@ -49,7 +49,7 @@ function AppRoutes() {
       <Route 
         path="/inventory" 
         element={
-          <ProtectedRoute allowedRoles={['Admin']}>
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
             <InventoryManagement />
           </ProtectedRoute>
         } 
@@ -59,6 +59,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
             <CustomerDirectory />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/staff-dashboard" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+            <StaffDashboard />
           </ProtectedRoute>
         } 
       />

@@ -18,7 +18,8 @@ import {
   Star,
   Activity
 } from 'lucide-react';
-import authService from "../../services/authService";// Data types and interface definitions
+import authService from "../../services/authService";
+// Data types and interface definitions
 type VendorStatus = "ACTIVE" | "INACTIVE";
 type FilterTab    = "All" | "Active" | "Inactive";
 
@@ -44,7 +45,8 @@ interface VendorFormData {
   rating:   string;
 }
 
-type ModalState = null | "add" | { edit: Vendor } | { delete: Vendor };// Initial data and configuration constants
+type ModalState = null | "add" | { edit: Vendor } | { delete: Vendor };
+// Initial data and configuration constants
 const INITIAL_VENDORS: Vendor[] = [
   { id: 1, name: "Axel & Co. Logistics",    initials: "AX", vendorId: "VND-4822", contact: "Marcus Sterling", email: "m.sterling@axelco.de",    rating: 4.9, status: "ACTIVE",   category: "Logistics"    },
   { id: 2, name: "Nordic Transmission",     initials: "NT", vendorId: "VND-9901", contact: "Elena Varkas",    email: "evarkas@nordic.se",         rating: 4.7, status: "ACTIVE",   category: "Transmission" },
@@ -80,7 +82,8 @@ const NAV_ITEMS = [
 
 const EMPTY_FORM: VendorFormData = {
   name: "", contact: "", email: "", vendorId: "", category: "General", status: "ACTIVE", rating: "5.0",
-};// Reusable UI components used within this page
+};
+// Reusable UI components used within this page
 const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
   <button 
     onClick={onClick}
@@ -242,7 +245,8 @@ function VendorModal({
       </div>
     </div>
   );
-}// Modal to confirm the deletion of an entry
+}
+// Modal to confirm the deletion of an entry
 function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: () => void; onConfirm: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -261,7 +265,8 @@ function DeleteModal({ vendor, onClose, onConfirm }: { vendor: Vendor; onClose: 
       </div>
     </div>
   );
-}// Main page component handling state and layout
+}
+// Main page component handling state and layout
 export default function VendorManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
@@ -275,7 +280,8 @@ export default function VendorManagement() {
   const [search, setSearch]         = useState("");
   const [modal, setModal]           = useState<ModalState>(null);
   const [menuOpen, setMenuOpen]     = useState<number | null>(null);
-  const [showInsights, setShowInsights] = useState(true);// Derived state calculations like filtering and sorting
+  const [showInsights, setShowInsights] = useState(true);
+// Derived state calculations like filtering and sorting
   const filtered = useMemo(() => {
     return vendors.filter((v) => {
       const matchFilter =
@@ -296,7 +302,8 @@ export default function VendorManagement() {
   const avgRating   = useMemo(() => {
     if (!vendors.length) return 0;
     return vendors.reduce((s, v) => s + v.rating, 0) / vendors.length;
-  }, [vendors]);// Handlers for creating, reading, updating, and deleting entries
+  }, [vendors]);
+// Handlers for creating, reading, updating, and deleting entries
   const handleAdd = (data: VendorFormData) => {
     const newVendor: Vendor = {
       id:       ++nextVendorId,
@@ -361,7 +368,7 @@ export default function VendorManagement() {
         </div>
 
         <nav className="flex-1 px-6 py-8 space-y-3">
-          {NAV_ITEMS.map((item, i) => (
+          {NAV_ITEMS.map((item) => (
             <NavItem 
               key={item.label} 
               icon={item.icon} 

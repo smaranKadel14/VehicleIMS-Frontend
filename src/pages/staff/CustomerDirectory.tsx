@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import authService from "../../services/authService";// Data types and interface definitions
+import authService from "../../services/authService";
+// Data types and interface definitions
 type CustomerStatus = "Active" | "Inactive";
 type SearchType     = "All" | "Name" | "Phone" | "Vehicle" | "ID";
 type SortOption     = "Total Spend" | "Last Visit" | "Name" | "Vehicles";
@@ -27,7 +28,8 @@ interface CustomerFormData {
 }
 
 type DrawerState  = Customer | null;
-type ModalState   = null | "add" | { edit: Customer } | { delete: Customer };// Initial data and configuration constants
+type ModalState   = null | "add" | { edit: Customer } | { delete: Customer };
+// Initial data and configuration constants
 const INITIAL_CUSTOMERS: Customer[] = [
   { id: 1, name: "Jonathan Kalu",   phone: "+1 (555) 012-9934", initials: "JK", vehicles: 4,  revenue: 12450.0,  lastVisit: "Oct 12, 2023", status: "Active",   vehiclePlates: ["KAL-1234", "KAL-5678"] },
   { id: 2, name: "Sarah Richards",  phone: "+1 (555) 014-8821", initials: "SR", vehicles: 1,  revenue: 3200.5,   lastVisit: "Nov 02, 2023", status: "Active",   vehiclePlates: ["RIC-4411"] },
@@ -47,16 +49,10 @@ function makeInitials(name: string): string {
   return name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
 }
 
-const NAV_ITEMS = [
-  { icon: "⊞", label: "Dashboard" },
-  { icon: "📦", label: "Inventory" },
-  { icon: "🔧", label: "Work Orders" },
-  { icon: "🚚", label: "Logistics" },
-  { icon: "👥", label: "Customers", active: true },
-  { icon: "📊", label: "Analytics" },
-];
 
-const EMPTY_FORM: CustomerFormData = { name: "", phone: "", status: "Active", plate1: "", plate2: "" };// Modal for creating new customers or modifying existing ones
+
+const EMPTY_FORM: CustomerFormData = { name: "", phone: "", status: "Active", plate1: "", plate2: "" };
+// Modal for creating new customers or modifying existing ones
 function CustomerModal({
   customer,
   onClose,
@@ -152,7 +148,8 @@ function CustomerModal({
       </div>
     </div>
   );
-}// Modal to confirm the deletion of an entry
+}
+// Modal to confirm the deletion of an entry
 function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onClose: () => void; onConfirm: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -169,7 +166,8 @@ function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onC
       </div>
     </div>
   );
-}// Side drawer showing in-depth customer information
+}
+// Side drawer showing in-depth customer information
 function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Customer; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
   return (
     <>
@@ -235,11 +233,35 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
       </div>
     </>
   );
-}// Main page component handling state and layout
+}
+// Main page component handling state and layout
 export default function CustomerSearch() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
   const [customers, setCustomers]         = useState<Customer[]>(INITIAL_CUSTOMERS);
+
+  const isStaff = user?.roles?.includes('Staff');
+
+  const filteredNavItems = useMemo(() => {
+    if (isStaff) {
+      return [
+        { icon: "⊞", label: "Dashboard", path: "/staff-dashboard" },
+        { icon: "📦", label: "Inventory", path: "/inventory" },
+        { icon: "🔧", label: "Work Orders", path: "#" },
+        { icon: "🚚", label: "Logistics", path: "#" },
+        { icon: "👥", label: "Customers", active: true, path: "/customers" },
+        { icon: "📊", label: "Analytics", path: "#" },
+      ];
+    }
+    return [
+      { icon: "⊞", label: "Dashboard", path: "/admin-dashboard" },
+      { icon: "📦", label: "Inventory", path: "/inventory" },
+      { icon: "👥", label: "Vendors", path: "/vendors" },
+      { icon: "🛡️", label: "Staff", path: "/staff-management" },
+      { icon: "🔧", label: "Work Orders", path: "#" },
+      { icon: "🚚", label: "Logistics", path: "#" },
+    ];
+  }, [isStaff]);
 
   const handleLogout = () => {
     authService.logout();
@@ -250,7 +272,8 @@ export default function CustomerSearch() {
   const [statusFilter, setStatusFilter]   = useState<StatusFilter>("All Active");
   const [sortBy, setSortBy]               = useState<SortOption>("Total Spend");
   const [drawer, setDrawer]               = useState<DrawerState>(null);
-  const [modal, setModal]                 = useState<ModalState>(null);// Derived state calculations like filtering and sorting
+  const [modal, setModal]                 = useState<ModalState>(null);
+// Derived state calculations like filtering and sorting
   const filtered = useMemo(() => {
     return customers
       .filter((c) => {
@@ -277,7 +300,8 @@ export default function CustomerSearch() {
         if (sortBy === "Name")        return a.name.localeCompare(b.name);
         return 0;
       });
-  }, [customers, search, searchType, statusFilter, sortBy]);// Handlers for creating, reading, updating, and deleting entries
+  }, [customers, search, searchType, statusFilter, sortBy]);
+// Handlers for creating, reading, updating, and deleting entries
   const handleAdd = (data: CustomerFormData) => {
     const plates = [data.plate1.trim(), data.plate2.trim()].filter(Boolean);
     const newCustomer: Customer = {
@@ -347,9 +371,12 @@ export default function CustomerSearch() {
 
         {/* Nav Items */}
         <nav style={{ flex: 1, padding: "12px 0" }}>
-          {NAV_ITEMS.map(({ icon, label, active }) => (
+          {filteredNavItems.map(({ icon, label, active, path }) => (
             <div
               key={label}
+              onClick={() => {
+                if (path && path !== "#") navigate(path);
+              }}
               style={{
                 display: "flex", alignItems: "center", gap: 10,
                 padding: "11px 20px",

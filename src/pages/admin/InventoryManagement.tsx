@@ -20,7 +20,8 @@ import {
   Users,
   ShieldCheck
 } from 'lucide-react';
-import authService from "../../services/authService";// Data types and interface definitions
+import authService from "../../services/authService";
+// Data types and interface definitions
 type StockStatus = "LOW" | "CRITICAL" | "OK";
 
 interface Part {
@@ -44,14 +45,16 @@ interface PartFormData {
   supplier: string;
 }
 
-type ModalState = null | "add" | { edit: Part } | { delete: Part };// Helper functions for common logic
+type ModalState = null | "add" | { edit: Part } | { delete: Part };
+// Helper functions for common logic
 function deriveStatus(stock: number): StockStatus {
   if (stock <= 3) return "CRITICAL";
   if (stock <= 10) return "LOW";
   return "OK";
 }
 
-let nextId = 100;// Initial data and configuration constants
+let nextId = 100;
+// Initial data and configuration constants
 const INITIAL_PARTS: Part[] = [
   { id: 1, name: "High-Performance Fuel Injector",  sku: "#FI-88291-LX",  category: "ENGINE COMPONENTS", stock: 8,   status: "LOW",      price: 284.5,  supplier: "Bosch Automotive GmbH",  icon: "⚙️" },
   { id: 2, name: "Ceramic Brake Pads (Front)",       sku: "#BP-00221-CF",  category: "BRAKING SYSTEM",    stock: 142, status: "OK",       price: 112.0,  supplier: "Brembo S.p.A",           icon: "🔘" },
@@ -84,14 +87,8 @@ const ICON_MAP: Record<string, any> = {
   "EXHAUST":           Wind,
 };
 
-const NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
-  { icon: Package, label: "Inventory", active: true, path: "/inventory" },
-  { icon: Users, label: "Vendors", path: "/vendors" },
-  { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
-  { icon: Wrench, label: "Work Orders", path: "#" },
-  { icon: Truck, label: "Logistics", path: "#" },
-];// Reusable UI components used within this page
+
+// Reusable UI components used within this page
 const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: any, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
   <button 
     onClick={onClick}
@@ -127,7 +124,8 @@ function StockBadge({ stock }: { stock: number }) {
       {labels[status]}
     </span>
   );
-}// Modal for creating new entries or modifying existing ones
+}
+// Modal for creating new entries or modifying existing ones
 const EMPTY_FORM: PartFormData = { name: "", sku: "", category: "ENGINE COMPONENTS", stock: "", price: "", supplier: "" };
 
 function AddEditModal({
@@ -230,7 +228,8 @@ function AddEditModal({
       </div>
     </div>
   );
-}// Modal to confirm the deletion of an entry
+}
+// Modal to confirm the deletion of an entry
 function DeleteModal({ part, onClose, onConfirm }: { part: Part; onClose: () => void; onConfirm: () => void }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -249,7 +248,8 @@ function DeleteModal({ part, onClose, onConfirm }: { part: Part; onClose: () => 
       </div>
     </div>
   );
-}// Main page component handling state and layout
+}
+// Main page component handling state and layout
 export default function PartsManagement() {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
@@ -260,10 +260,33 @@ export default function PartsManagement() {
   const [modal, setModal]           = useState<ModalState>(null);
   const [menuOpen, setMenuOpen]     = useState<number | null>(null);
 
+  const isStaff = user?.roles?.includes('Staff');
+
+  const filteredNavItems = useMemo(() => {
+    if (isStaff) {
+      return [
+        { icon: LayoutDashboard, label: "Dashboard", path: "/staff-dashboard" },
+        { icon: Package, label: "Inventory", active: true, path: "/inventory" },
+        { icon: Users, label: "Customers", path: "/customers" },
+        { icon: Wrench, label: "Work Orders", path: "#" },
+        { icon: Truck, label: "Logistics", path: "#" },
+      ];
+    }
+    return [
+      { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
+      { icon: Package, label: "Inventory", active: true, path: "/inventory" },
+      { icon: Users, label: "Vendors", path: "/vendors" },
+      { icon: ShieldCheck, label: "Staff", path: "/staff-management" },
+      { icon: Wrench, label: "Work Orders", path: "#" },
+      { icon: Truck, label: "Logistics", path: "#" },
+    ];
+  }, [isStaff]);
+
   const handleLogout = () => {
     authService.logout();
     navigate('/login');
-  };// Computes the filtered list based on user search and filters
+  };
+// Computes the filtered list based on user search and filters
   const filtered = useMemo(() => {
     return parts.filter((p) => {
       const q = search.toLowerCase();
@@ -282,10 +305,12 @@ export default function PartsManagement() {
 
       return matchSearch && matchCat && matchStatus;
     });
-  }, [parts, search, categoryFilter, stockFilter]);// Computes summary statistics for the top dashboard cards
+  }, [parts, search, categoryFilter, stockFilter]);
+// Computes summary statistics for the top dashboard cards
   const totalStock   = useMemo(() => parts.reduce((s, p) => s + p.stock, 0), [parts]);
   const lowAlerts    = useMemo(() => parts.filter((p) => deriveStatus(p.stock) !== "OK").length, [parts]);
-  const inventoryVal = useMemo(() => parts.reduce((s, p) => s + p.stock * p.price, 0), [parts]);// Handlers for creating, reading, updating, and deleting entries
+  const inventoryVal = useMemo(() => parts.reduce((s, p) => s + p.stock * p.price, 0), [parts]);
+// Handlers for creating, reading, updating, and deleting entries
   const handleAdd = (data: PartFormData) => {
     const newPart: Part = {
       id:       ++nextId,
@@ -350,15 +375,15 @@ export default function PartsManagement() {
         </div>
 
         <nav className="flex-1 px-6 py-8 space-y-3">
-          {NAV_ITEMS.map((item) => (
+          {filteredNavItems.map((item) => (
             <NavItem 
               key={item.label} 
               icon={item.icon} 
               label={item.label} 
               active={item.active} 
               onClick={() => {
-              if (item.path !== "#") navigate(item.path);
-            }}
+                if (item.path !== "#") navigate(item.path);
+              }}
             />
           ))}
         </nav>
