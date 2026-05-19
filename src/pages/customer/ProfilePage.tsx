@@ -6,52 +6,40 @@ import customerService from "../../services/customerService";
 import type { VehicleResponse } from "../../services/customerService";
 import {
   Bell,
-  LayoutDashboard,
-  Wrench,
-  Settings,
-  LogOut,
   LockKeyhole,
   Smartphone,
-  History,
-  TriangleAlert,
   Upload,
-  ArrowLeft,
+  ArrowLeft
 } from "lucide-react";
 
 type ProfileData = {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   phone: string;
-  department: string;
-  role: string;
+  address: string;
   portalId: string;
   tierStatus: string;
   lastActive: string;
 };
 
 const initialProfile: ProfileData = {
-  fullName: "Marcus V. Sterling",
-  email: "m.sterling@enginecore.industrial",
-  phone: "+1 (555) 012-8844",
-  department: "Global Logistics & Distribution",
-  role: "Senior Logistics Lead",
-  portalId: "EC-99210-MV",
-  tierStatus: "Administrator",
-  lastActive: "2m ago",
+  firstName: "Client",
+  lastName: "Profile",
+  email: "client@enginecore.global",
+  phone: "Not Provided",
+  address: "Not Provided",
+  portalId: "EC-PENDING",
+  tierStatus: "Customer Account",
+  lastActive: "Active Now",
 };
-
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", view: "dashboard" },
-  { icon: Wrench, label: "Service Scheduler", view: "services" },
-  { icon: History, label: "History & Reviews", view: "history" },
-];
 
 const securityItems = [
   {
     icon: LockKeyhole,
     title: "Account Password",
-    description: "Last changed 4 months ago",
-    action: "Change",
+    description: "Managed via EngineCore Identity service",
+    action: "Change Password",
   },
   {
     icon: Smartphone,
@@ -59,40 +47,38 @@ const securityItems = [
     description: "Enabled via authenticator app",
     action: "Configure",
   },
-  {
-    icon: History,
-    title: "Login History",
-    description: "Review recent session activity",
-    action: "View All",
-  },
 ];
+
+interface InfoFieldProps {
+  label: string;
+  value: string;
+  isEditing: boolean;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
 
 function InfoField({
   label,
   value,
   isEditing,
   onChange,
-}: {
-  label: string;
-  value: string;
-  isEditing: boolean;
-  onChange: (value: string) => void;
-}) {
+  disabled = false,
+}: InfoFieldProps) {
   return (
     <div className="space-y-2">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-tertiary">
+      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary">
         {label}
       </p>
 
-      {isEditing ? (
+      {isEditing && !disabled ? (
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="input bg-secondary/10"
+          className="w-full bg-[#f8f8f6] border border-secondary/30 rounded-xl px-4 py-3 text-sm font-semibold text-primary focus:outline-none focus:border-black focus:ring-1 focus:ring-black transition-all"
         />
       ) : (
-        <div className="rounded-xl bg-secondary/20 px-4 py-3 text-sm font-medium text-primary">
-          {value}
+        <div className={`rounded-xl px-4 py-3 text-sm font-semibold text-primary border border-secondary/10 ${disabled ? "bg-secondary/10 text-primary/50 cursor-not-allowed" : "bg-[#fcfcfb]"}`}>
+          {value || <span className="text-tertiary italic font-normal">Not Provided</span>}
         </div>
       )}
     </div>
@@ -101,57 +87,64 @@ function InfoField({
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState(initialProfile);
-  const [draft, setDraft] = useState(initialProfile);
+  const [profile, setProfile] = useState<ProfileData>(initialProfile);
+  const [draft, setDraft] = useState<ProfileData>(initialProfile);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Live database vehicles and loader states
+  const [customerId, setCustomerId] = useState<number | null>(null);
   const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
   const [loading, setLoading] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const initials = useMemo(() => {
-    return profile.fullName
+    const name = `${profile.firstName} ${profile.lastName}`.trim();
+    return name
       .split(" ")
       .slice(0, 2)
       .map((word) => word[0]?.toUpperCase() ?? "")
       .join("");
-  }, [profile.fullName]);
+  }, [profile.firstName, profile.lastName]);
 
-  useEffect(() => {
+  const fetchProfile = async () => {
     const user = authService.getCurrentUser();
     if (!user?.userName) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    customerService.search(user.userName)
-      .then(res => {
-        if (res && res.length > 0) {
-          const matchedCust = res[0];
-          const mappedProfile: ProfileData = {
-            fullName: `${matchedCust.firstName} ${matchedCust.lastName}`,
-            email: matchedCust.email,
-            phone: matchedCust.phone,
-            department: matchedCust.address || "Kathmandu, Nepal",
-            role: "Verified Client",
-            portalId: `EC-${matchedCust.id}-CUST`,
-            tierStatus: "Customer Account",
-            lastActive: "Active Now"
-          };
-          setProfile(mappedProfile);
-          setDraft(mappedProfile);
-          setVehicles(matchedCust.vehicles || []);
-        }
-      })
-      .catch(err => {
-        console.error("Failed to load customer profile:", err);
-        setErrorMsg("Unable to retrieve database records for your maintenance profile.");
-      })
-      .finally(() => setLoading(false));
+    try {
+      setLoading(true);
+      const res = await customerService.search(user.userName);
+      if (res && res.length > 0) {
+        const matchedCust = res[0];
+        setCustomerId(matchedCust.id);
+        const mappedProfile: ProfileData = {
+          firstName: matchedCust.firstName,
+          lastName: matchedCust.lastName,
+          email: matchedCust.email,
+          phone: matchedCust.phone,
+          address: matchedCust.address || "",
+          portalId: `EC-${matchedCust.id}-CUST`,
+          tierStatus: "Verified Customer",
+          lastActive: "Active Now"
+        };
+        setProfile(mappedProfile);
+        setDraft(mappedProfile);
+        setVehicles(matchedCust.vehicles || []);
+      }
+    } catch (err) {
+      console.error("Failed to load customer profile:", err);
+      setErrorMsg("Unable to retrieve database records for your profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
   }, []);
 
   const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -172,351 +165,337 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
-  const saveChanges = () => {
-    setProfile(draft);
-    setIsEditing(false);
-    setSuccessMsg("Details cached locally! For official ledger compliance updates, please contact your EngineCore service adviser.");
-    setTimeout(() => setSuccessMsg(null), 8000);
+  const saveChanges = async () => {
+    if (!customerId) return;
+    try {
+      setUpdating(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+
+      const updated = await customerService.updateCustomer(customerId, {
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        phone: draft.phone,
+        address: draft.address,
+      });
+
+      const mappedProfile: ProfileData = {
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        email: updated.email,
+        phone: updated.phone,
+        address: updated.address || "",
+        portalId: `EC-${updated.id}-CUST`,
+        tierStatus: "Verified Customer",
+        lastActive: "Active Now"
+      };
+
+      setProfile(mappedProfile);
+      setIsEditing(false);
+      setSuccessMsg("Profile details successfully updated and database synchronized!");
+      setTimeout(() => setSuccessMsg(null), 5000);
+    } catch (err: any) {
+      console.error("Failed to update profile:", err);
+      setErrorMsg("Failed to update profile records on the server. Please check validation rules.");
+      setTimeout(() => setErrorMsg(null), 5000);
+    } finally {
+      setUpdating(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#f5f5f3] flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 rounded-full border-4 border-black/10 border-t-black animate-spin" />
-        <p className="text-xs uppercase tracking-[0.2em] font-black text-tertiary">Connecting to enginecore database...</p>
+        <p className="text-xs uppercase tracking-[0.2em] font-black text-tertiary">Connecting to Enginecore ledger...</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#f5f5f3] text-primary">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-[250px] shrink-0 flex-col bg-[#2b2b2b] text-white lg:flex">
-          <div className="border-b border-white/10 px-6 py-5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-black font-black">
-                EC
-              </div>
+      <div className="flex flex-col min-h-screen">
+        {/* Sleek Minimalist Top Navigation Header (No Sidebar Navbar!) */}
+        <header className="sticky top-0 z-40 border-b border-secondary/20 bg-white/80 backdrop-blur-md">
+          <div className="mx-auto max-w-7xl px-6 sm:px-8 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className="flex items-center justify-center w-9 h-9 rounded-xl border border-secondary/20 hover:bg-neutral hover:text-black transition-all text-tertiary"
+                title="Back to Dashboard"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
               <div>
-                <h2 className="font-heading text-lg font-extrabold leading-none">
-                  EngineCore
-                </h2>
-                <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-white/55">
-                  V-Series Portal
-                </p>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Account Settings</p>
+                <p className="text-[10px] text-tertiary font-medium">Verify credentials & fleet registry</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6">
+              <button className="text-tertiary hover:text-primary transition-all relative">
+                <Bell className="h-5 w-5" />
+              </button>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-black text-xs font-black text-white shadow-md select-none">
+                {initials}
               </div>
             </div>
           </div>
+        </header>
 
-          <nav className="flex-1 px-4 py-6">
-            <div className="space-y-2">
-              {navItems.map(({ icon: Icon, label, view }) => (
-                <button
-                  key={label}
-                  onClick={() => navigate("/dashboard", { state: { activeView: view } })}
-                  className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm font-medium text-white/65 transition hover:bg-white/6 hover:text-white"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          </nav>
-
-          <div className="border-t border-white/10 p-4">
-            <button 
-              onClick={() => navigate("/profile")}
-              className="mb-2 flex w-full items-center gap-3 rounded-xl bg-white/10 px-4 py-3 text-sm font-medium"
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </button>
-            <button 
-              onClick={() => {
-                authService.logout();
-                navigate("/login");
-              }}
-              className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white/65 transition hover:bg-white/6 hover:text-white"
-            >
-              <LogOut className="h-4 w-4" />
-              Sign Out
-            </button>
-          </div>
-        </aside>
-
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="border-b border-secondary/40 bg-white">
-            <div className="flex h-16 items-center justify-between px-5 sm:px-8">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-secondary/15 transition-all text-primary"
-                  title="Back to Dashboard"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
-                <p className="text-sm font-semibold">Account Settings</p>
+        {/* Profile Content Container */}
+        <main className="flex-1 py-10 px-6 sm:px-8">
+          <div className="mx-auto max-w-6xl">
+            {/* Notifications */}
+            {successMsg && (
+              <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-800 text-xs font-semibold uppercase tracking-wider shadow-sm animate-fade-in">
+                <span>✅</span>
+                <span>{successMsg}</span>
               </div>
-
-              <div className="flex items-center gap-4">
-                <button className="hidden text-[11px] font-semibold uppercase tracking-[0.18em] text-tertiary sm:inline">
-                  Support
-                </button>
-                <button className="text-tertiary transition hover:text-primary">
-                  <Bell className="h-5 w-5" />
-                </button>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-neutral">
-                  {initials}
-                </div>
+            )}
+            {errorMsg && (
+              <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-800 text-xs font-semibold uppercase tracking-wider shadow-sm animate-fade-in">
+                <span>⚠️</span>
+                <span>{errorMsg}</span>
               </div>
-            </div>
-          </header>
+            )}
 
-          <main className="flex-1 px-5 py-8 sm:px-8 lg:px-10">
-            <div className="mx-auto max-w-7xl">
-              <div className="mb-8">
-                <h1 className="font-heading text-4xl font-extrabold tracking-tight text-primary">
-                  User Profile
-                </h1>
-                <p className="mt-2 text-base text-primary/70">
-                  Manage your industrial portal credentials and preferences.
-                </p>
-              </div>
-
-              {successMsg && (
-                <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-start gap-3 text-emerald-800 text-xs font-semibold uppercase tracking-wider">
-                  <span>✅</span>
-                  <span>{successMsg}</span>
-                </div>
-              )}
-              {errorMsg && (
-                <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-start gap-3 text-rose-800 text-xs font-semibold uppercase tracking-wider">
-                  <span>⚠️</span>
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              <div className="grid gap-6 xl:grid-cols-12">
-                <div className="space-y-6 xl:col-span-4">
-                  <section className="card rounded-2xl bg-white p-6 shadow-sm">
-                    <div className="flex flex-col items-center text-center">
-                      <div className="relative mb-5">
-                        <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-secondary/30 bg-[#151515] text-3xl font-black text-white shadow-sm">
-                          {avatarPreview ? (
-                            <img
-                              src={avatarPreview}
-                              alt="Profile preview"
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            initials
-                          )}
-                        </div>
-                      </div>
-
-                      <h2 className="text-2xl font-heading font-extrabold text-primary">
-                        {profile.fullName}
-                      </h2>
-                      <p className="mt-1 text-xs font-semibold uppercase tracking-[0.22em] text-tertiary">
-                        {profile.role}
-                      </p>
-
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleAvatarChange}
-                        className="hidden"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-sm font-bold text-white transition hover:bg-primary"
-                      >
-                        <Upload className="h-4 w-4" />
-                        Update Photo
-                      </button>
-
-                      <p className="mt-3 text-xs text-tertiary">
-                        Local preview only for now. Replace this with Cloudinary upload later.
-                      </p>
-                    </div>
-                  </section>
-
-                  <section className="card rounded-2xl bg-[#f0f0ef] p-6 shadow-sm">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-tertiary">
-                      System Access
-                    </p>
-
-                    <div className="mt-5 space-y-4">
-                      <div className="flex items-center justify-between border-b border-secondary/50 pb-3 text-sm">
-                        <span className="text-primary/65">Portal ID</span>
-                        <span className="font-bold">{profile.portalId}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between border-b border-secondary/50 pb-3 text-sm">
-                        <span className="text-primary/65">Tier Status</span>
-                        <span className="font-bold">{profile.tierStatus}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-primary/65">Last Active</span>
-                        <span className="font-bold">{profile.lastActive}</span>
-                      </div>
-                    </div>
-                  </section>
-                </div>
-
-                <div className="space-y-6 xl:col-span-8">
-                  <section className="card rounded-2xl bg-white p-6 sm:p-7 shadow-sm">
-                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <h2 className="text-2xl font-heading font-extrabold text-primary">
-                        Personal Information
-                      </h2>
-
-                      {isEditing ? (
-                        <div className="flex gap-3">
-                          <button
-                            type="button"
-                            onClick={cancelEditing}
-                            className="btn-inverted px-4 py-2 text-xs font-bold uppercase tracking-[0.16em]"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={saveChanges}
-                            className="btn-primary px-4 py-2 text-xs font-bold uppercase tracking-[0.16em]"
-                          >
-                            Save Changes
-                          </button>
-                        </div>
+            <div className="grid gap-8 xl:grid-cols-12">
+              {/* Left Column: Avatar & Metadata */}
+              <div className="space-y-8 xl:col-span-4">
+                <section className="card rounded-2xl bg-white p-6 shadow-sm border border-secondary/10 flex flex-col items-center text-center">
+                  <div className="relative mb-5 group">
+                    <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-3xl border-4 border-secondary/20 bg-[#151515] text-3xl font-black text-white shadow-inner transition-transform duration-300 group-hover:scale-105">
+                      {avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="Profile preview"
+                          className="h-full w-full object-cover animate-fade-in"
+                        />
                       ) : (
-                        <button
-                          type="button"
-                          onClick={startEditing}
-                          className="text-xs font-bold uppercase tracking-[0.16em] text-primary transition hover:text-primary/70"
-                        >
-                          Edit Details
-                        </button>
+                        initials
                       )}
                     </div>
+                  </div>
 
-                    <div className="grid gap-5 md:grid-cols-2">
-                      <InfoField
-                        label="Full Name"
-                        value={isEditing ? draft.fullName : profile.fullName}
-                        isEditing={isEditing}
-                        onChange={(value) => setDraft((prev) => ({ ...prev, fullName: value }))}
-                      />
+                  <h2 className="text-2xl font-heading font-extrabold text-primary tracking-tight">
+                    {profile.firstName} {profile.lastName}
+                  </h2>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-tertiary px-3 py-1 bg-[#f5f5f3] rounded-lg">
+                    {profile.tierStatus}
+                  </p>
 
-                      <InfoField
-                        label="Email Address"
-                        value={isEditing ? draft.email : profile.email}
-                        isEditing={isEditing}
-                        onChange={(value) => setDraft((prev) => ({ ...prev, email: value }))}
-                      />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                  />
 
-                      <InfoField
-                        label="Phone Number"
-                        value={isEditing ? draft.phone : profile.phone}
-                        isEditing={isEditing}
-                        onChange={(value) => setDraft((prev) => ({ ...prev, phone: value }))}
-                      />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-black px-4 py-3 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-neutral hover:text-black border border-black shadow-sm"
+                  >
+                    <Upload className="h-4 w-4" />
+                    Update Photo
+                  </button>
 
-                      <InfoField
-                        label="Department"
-                        value={isEditing ? draft.department : profile.department}
-                        isEditing={isEditing}
-                        onChange={(value) => setDraft((prev) => ({ ...prev, department: value }))}
-                      />
+                  <p className="mt-4 text-[10px] text-tertiary uppercase tracking-wider font-semibold">
+                    Client Avatar Photo
+                  </p>
+                </section>
+
+                <section className="card rounded-2xl bg-[#eaeaeb] p-6 border border-secondary/20 shadow-inner">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary mb-5">
+                    Account Metadata
+                  </p>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-black/5 pb-3 text-xs">
+                      <span className="text-tertiary font-bold uppercase tracking-wider">Account ID</span>
+                      <span className="font-mono font-bold text-primary">{profile.portalId}</span>
                     </div>
-                  </section>
 
-                  <section className="card rounded-2xl bg-white p-6 sm:p-7 shadow-sm">
-                    <div className="mb-2">
-                      <h2 className="text-2xl font-heading font-extrabold text-primary">
-                        Security & Credentials
+                    <div className="flex items-center justify-between border-b border-black/5 pb-3 text-xs">
+                      <span className="text-tertiary font-bold uppercase tracking-wider">Status Tier</span>
+                      <span className="font-bold text-primary">{profile.tierStatus}</span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-tertiary font-bold uppercase tracking-wider">Last Sync</span>
+                      <span className="font-bold text-primary">{profile.lastActive}</span>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+              {/* Right Column: Edit Forms & Security Details */}
+              <div className="space-y-8 xl:col-span-8">
+                <section className="card rounded-2xl bg-white p-6 sm:p-8 border border-secondary/10 shadow-sm">
+                  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-2xl font-heading font-extrabold text-primary tracking-tight">
+                        Personal Information
                       </h2>
-                      <p className="mt-2 text-sm text-primary/65">
-                        Protect your industrial access with multi-factor authentication.
-                      </p>
+                      <p className="text-xs text-tertiary mt-1">Authorized client profile parameters.</p>
                     </div>
 
-                    <div className="mt-6 space-y-4">
-                      {securityItems.map(({ icon: Icon, title, description, action }) => (
-                        <div
-                          key={title}
-                          className="flex flex-col gap-4 rounded-2xl bg-secondary/15 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    {isEditing ? (
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          disabled={updating}
+                          onClick={cancelEditing}
+                          className="px-4 py-2 border border-secondary/30 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-neutral transition-all disabled:opacity-50"
                         >
-                          <div className="flex items-center gap-4">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
-                              <Icon className="h-5 w-5" />
-                            </div>
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={updating}
+                          onClick={saveChanges}
+                          className="px-4 py-2 bg-black text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-neutral hover:text-black border border-black transition-all flex items-center gap-2 shadow-sm disabled:opacity-50"
+                        >
+                          {updating && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={startEditing}
+                        className="px-4 py-2 bg-[#f5f5f3] hover:bg-[#eaeaea] rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-secondary/20 shadow-sm"
+                      >
+                        Edit Details
+                      </button>
+                    )}
+                  </div>
 
-                            <div>
-                              <h3 className="text-sm font-extrabold text-primary">{title}</h3>
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-tertiary">
-                                {description}
-                              </p>
-                            </div>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <InfoField
+                      label="First Name"
+                      value={isEditing ? draft.firstName : profile.firstName}
+                      isEditing={isEditing}
+                      onChange={(value) => setDraft((prev) => ({ ...prev, firstName: value }))}
+                    />
+
+                    <InfoField
+                      label="Last Name"
+                      value={isEditing ? draft.lastName : profile.lastName}
+                      isEditing={isEditing}
+                      onChange={(value) => setDraft((prev) => ({ ...prev, lastName: value }))}
+                    />
+
+                    <InfoField
+                      label="Email Address"
+                      value={profile.email}
+                      isEditing={isEditing}
+                      onChange={() => {}}
+                      disabled
+                    />
+
+                    <InfoField
+                      label="Phone Number"
+                      value={isEditing ? draft.phone : profile.phone}
+                      isEditing={isEditing}
+                      onChange={(value) => setDraft((prev) => ({ ...prev, phone: value }))}
+                    />
+
+                    <div className="md:col-span-2">
+                      <InfoField
+                        label="Primary Address"
+                        value={isEditing ? draft.address : profile.address}
+                        isEditing={isEditing}
+                        onChange={(value) => setDraft((prev) => ({ ...prev, address: value }))}
+                      />
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card rounded-2xl bg-white p-6 sm:p-8 border border-secondary/10 shadow-sm">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-heading font-extrabold text-primary tracking-tight">
+                      Security & Access Registry
+                    </h2>
+                    <p className="text-xs text-tertiary mt-1">Multi-factor authentications & credential logs.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {securityItems.map(({ icon: Icon, title, description, action }) => (
+                      <div
+                        key={title}
+                        className="flex flex-col gap-4 rounded-2xl bg-[#fcfcfb] border border-secondary/10 p-5 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#f5f5f3] text-primary border border-secondary/20">
+                            <Icon className="h-5 w-5" />
                           </div>
 
-                          <button className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-primary shadow-sm transition hover:bg-secondary/30">
-                            {action}
-                          </button>
+                          <div>
+                            <h3 className="text-sm font-black text-primary">{title}</h3>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider text-tertiary mt-1">
+                              {description}
+                            </p>
+                          </div>
+                        </div>
+
+                        <button className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-white border border-secondary/30 rounded-xl hover:bg-neutral hover:text-black transition-all shadow-sm">
+                          {action}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Fleet Summary Card in Profile */}
+                <section className="card rounded-2xl bg-white p-6 sm:p-8 border border-secondary/10 shadow-sm">
+                  <div className="mb-6 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-2xl font-heading font-extrabold text-primary tracking-tight">
+                        Registered Maintenance Assets ({vehicles.length})
+                      </h3>
+                      <p className="text-xs text-tertiary mt-1">Directly bound to your service registry.</p>
+                    </div>
+
+                    <button
+                      onClick={() => navigate("/dashboard", { state: { activeView: "garage" } })}
+                      className="px-4 py-2 text-xs font-black uppercase tracking-wider bg-black text-white hover:bg-neutral hover:text-black border border-black rounded-xl transition-all shadow-sm"
+                    >
+                      Manage Fleet
+                    </button>
+                  </div>
+                  
+                  {vehicles.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-secondary/30 p-8 text-center bg-[#fcfcfb]">
+                      <p className="text-xs font-bold uppercase tracking-widest text-tertiary">No fleet vehicles currently registered.</p>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {vehicles.map((veh) => (
+                        <div key={veh.id} className="rounded-2xl bg-[#fcfcfb] border border-secondary/15 p-5 flex flex-col justify-between hover:border-black/30 transition-all shadow-sm">
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-black text-sm text-primary uppercase tracking-tight">{veh.make} {veh.model}</h4>
+                              <span className="rounded-lg bg-black text-white px-2.5 py-0.5 text-[9px] font-black font-mono tracking-widest">{veh.year}</span>
+                            </div>
+                            <p className="text-[9px] uppercase font-black text-tertiary tracking-widest mt-3.5">LICENSE PLATE</p>
+                            <p className="text-xs font-mono font-bold text-primary bg-[#f5f5f3] px-2.5 py-1 rounded-lg inline-block border border-secondary/20 mt-1">{veh.licensePlate}</p>
+                          </div>
+                          <div className="mt-4 pt-4 border-t border-secondary/10 flex justify-between items-center text-[9px] font-black text-tertiary tracking-widest">
+                            <span>VIN SPECIFICATION</span>
+                            <span className="font-mono text-primary font-bold">{veh.vin}</span>
+                          </div>
                         </div>
                       ))}
                     </div>
-
-                    <div className="mt-8 border-t border-secondary/40 pt-6">
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-center gap-2 text-sm font-bold text-red-600">
-                          <TriangleAlert className="h-4 w-4" />
-                          Danger Zone
-                        </div>
-
-                        <button className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-100">
-                          Deactivate Portal Access
-                        </button>
-                      </div>
-                    </div>
-                  </section>
-
-                  <section className="card rounded-2xl bg-white p-6 sm:p-7 shadow-sm">
-                    <h3 className="text-lg font-heading font-extrabold text-primary mb-4 flex items-center gap-2">
-                      🚗 Registered Vehicles ({vehicles.length})
-                    </h3>
-                    
-                    {vehicles.length === 0 ? (
-                      <p className="text-sm text-tertiary italic">No registered assets found in your maintenance profile.</p>
-                    ) : (
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {vehicles.map((veh) => (
-                          <div key={veh.id} className="rounded-xl bg-secondary/10 border border-secondary/20 p-4 flex flex-col justify-between">
-                            <div>
-                              <div className="flex justify-between items-start">
-                                <h4 className="font-extrabold text-base text-primary">{veh.make} {veh.model}</h4>
-                                <span className="rounded-md bg-black text-white px-2 py-0.5 text-[10px] font-mono tracking-tight">{veh.year}</span>
-                              </div>
-                              <p className="text-[10px] uppercase font-semibold text-tertiary tracking-[0.1em] mt-1.5 font-bold">LICENSE PLATE</p>
-                              <p className="text-sm font-mono font-bold text-primary bg-white/50 px-2.5 py-1 rounded-lg inline-block border border-secondary/10 mt-1">{veh.licensePlate}</p>
-                            </div>
-                            <div className="mt-3 pt-3 border-t border-secondary/20 flex justify-between items-center text-[10px] font-bold text-tertiary tracking-wider">
-                              <span>VIN</span>
-                              <span className="font-mono text-primary">{veh.vin}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </section>
-                </div>
+                  )}
+                </section>
               </div>
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   );
