@@ -11,7 +11,9 @@ import {
   AlertTriangle,
   Download,
   CreditCard,
-  FileText
+  FileText,
+  Calendar,
+  ShoppingCart
 } from 'lucide-react';
 import authService from '../../services/authService';
 import reportService from '../../services/reportService';
@@ -150,7 +152,8 @@ export default function StaffReports() {
         logoIcon={Settings}
         items={[
           { icon: LayoutDashboard, label: "Dashboard", active: false, onClick: () => navigate("/staff/dashboard") },
-          { icon: Activity, label: "Performance", active: false, onClick: () => navigate("/staff/performance") },
+          { icon: ShoppingCart, label: "POS", active: false, onClick: () => navigate("/staff/pos") },
+          { icon: Calendar, label: "Appointments", active: false, onClick: () => navigate("/staff/appointments") },
           { icon: BarChart3, label: "Reports", active: true, onClick: () => navigate("/staff/reports") },
           { icon: Users, label: "Customers", active: false, onClick: () => navigate("/staff/customers") }
         ]}

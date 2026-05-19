@@ -155,18 +155,16 @@ const StaffDashboard: FC = () => {
   };
 
   // Submit handlers for Modular Modals
-  const handleAuthorizeSale = async (data: { customerId: number; partId: number; quantity: number; discountPercentage: number; totalAmount: number }) => {
+  const handleAuthorizeSale = async (data: { customerId: number; items: { partId: number; quantity: number }[]; discountPercentage: number; totalAmount: number }) => {
     try {
       await salesService.create({
         customerId: data.customerId,
         isPaid: true,
-        items: [
-          {
-            partId: data.partId,
-            quantity: data.quantity,
-            unitPrice: dbParts.find(p => p.id === data.partId)?.price || 0
-          }
-        ]
+        items: data.items.map(item => ({
+          partId: item.partId,
+          quantity: item.quantity,
+          unitPrice: dbParts.find(p => p.id === item.partId)?.price || 0
+        }))
       });
 
       setIsSellModalOpen(false);
@@ -237,7 +235,8 @@ const StaffDashboard: FC = () => {
         logoIcon={Settings}
         items={[
           { icon: LayoutDashboard, label: "Dashboard", active: true, onClick: () => navigate("/staff/dashboard") },
-          { icon: Activity, label: "Performance", active: false, onClick: () => navigate("/staff/performance") },
+          { icon: ShoppingCart, label: "POS", active: false, onClick: () => navigate("/staff/pos") },
+          { icon: Calendar, label: "Appointments", active: false, onClick: () => navigate("/staff/appointments") },
           { icon: BarChart3, label: "Reports", active: false, onClick: () => navigate("/staff/reports") },
           { icon: Users, label: "Customers", active: false, onClick: () => navigate("/staff/customers") }
         ]}
@@ -391,7 +390,7 @@ const StaffDashboard: FC = () => {
                 
                 {/* Action 1: Sell Parts */}
                 <button
-                  onClick={() => setIsSellModalOpen(true)}
+                  onClick={() => navigate("/staff/pos")}
                   style={{
                     width: "100%",
                     background: "#111827",

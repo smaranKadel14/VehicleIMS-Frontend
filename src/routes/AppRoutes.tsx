@@ -11,7 +11,8 @@ import AdminDashboard from "../pages/admin/AdminDashboard";
 import StaffManagement from "../pages/admin/StaffManagement";
 import StaffDashboard from "../pages/staff/StaffDashboard";
 import StaffReports from "../pages/staff/StaffReports";
-import StaffPerformance from "../pages/staff/StaffPerformance";
+import StaffAppointments from "../pages/staff/StaffAppointments";
+import StaffPOS from "../pages/staff/StaffPOS";
 import PurchaseManagement from "../pages/admin/PurchaseManagement";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -82,10 +83,18 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/staff/performance" 
+        path="/staff/appointments" 
         element={
           <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
-            <StaffPerformance />
+            <StaffAppointments />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/staff/pos" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+            <StaffPOS />
           </ProtectedRoute>
         } 
       />

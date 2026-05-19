@@ -11,7 +11,9 @@ import {
   Trash2, 
   Edit3,
   Activity,
-  BarChart3
+  BarChart3,
+  Calendar,
+  ShoppingCart
 } from "lucide-react";
 import authService from "../../services/authService";
 import customerService from "../../services/customerService";
@@ -573,7 +575,8 @@ export default function CustomerSearch() {
   const filteredNavItems = isStaff
     ? [
         { icon: LayoutDashboard, label: "Dashboard", path: "/staff/dashboard" },
-        { icon: Activity, label: "Performance", path: "/staff/performance" },
+        { icon: ShoppingCart, label: "POS", path: "/staff/pos" },
+        { icon: Calendar, label: "Appointments", path: "/staff/appointments" },
         { icon: BarChart3, label: "Reports", path: "/staff/reports" },
         { icon: Users, label: "Customers", active: true, path: "/staff/customers" },
       ]
@@ -607,18 +610,16 @@ export default function CustomerSearch() {
       .catch(err => console.error("Error loading parts:", err));
   }, []);
 
-  const handleAuthorizeSale = async (data: { customerId: number; partId: number; quantity: number; discountPercentage: number; totalAmount: number }) => {
+  const handleAuthorizeSale = async (data: { customerId: number; items: { partId: number; quantity: number }[]; discountPercentage: number; totalAmount: number }) => {
     try {
       await salesService.create({
         customerId: data.customerId,
         isPaid: true,
-        items: [
-          {
-            partId: data.partId,
-            quantity: data.quantity,
-            unitPrice: dbParts.find(p => p.id === data.partId)?.price || 0
-          }
-        ]
+        items: data.items.map(item => ({
+          partId: item.partId,
+          quantity: item.quantity,
+          unitPrice: dbParts.find(p => p.id === item.partId)?.price || 0
+        }))
       });
       setSellModalOpen(false);
       await fetchCustomers();
