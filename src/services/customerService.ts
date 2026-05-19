@@ -23,6 +23,37 @@ export interface CustomerResponse {
   vehicles: VehicleResponse[];
 }
 
+export interface NotificationResponse {
+  id: number;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  userId: number;
+}
+
+export interface SalesInvoiceItemResponse {
+  id: number;
+  partId: number;
+  partName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface SalesInvoiceResponse {
+  id: number;
+  invoiceNumber: string;
+  date: string;
+  customerId: number;
+  customerName: string;
+  subTotal: number;
+  discountPercentage: number;
+  discountAmount: number;
+  finalTotal: number;
+  isPaid: boolean;
+  items: SalesInvoiceItemResponse[];
+}
+
 export interface SalesInvoiceSummaryResponse {
   id: number;
   invoiceNumber: string;
@@ -140,6 +171,26 @@ const customerService = {
     data: { firstName: string; lastName: string; phone: string; address: string }
   ) => {
     const response = await api.put<CustomerResponse>(`/Customer/${customerId}`, data);
+    return response.data;
+  },
+
+  getCustomerInvoices: async (customerId: number) => {
+    const response = await api.get<SalesInvoiceResponse[]>(`/Sales/customer/${customerId}`);
+    return response.data;
+  },
+
+  getCustomerNotifications: async (userId: number) => {
+    const response = await api.get<NotificationResponse[]>(`/Notification/user/${userId}`);
+    return response.data;
+  },
+
+  markNotificationAsRead: async (id: number) => {
+    const response = await api.put<{ message: string }>(`/Notification/${id}/read`);
+    return response.data;
+  },
+
+  markAllNotificationsAsRead: async (userId: number) => {
+    const response = await api.put<{ message: string }>(`/Notification/user/${userId}/read-all`);
     return response.data;
   },
 };

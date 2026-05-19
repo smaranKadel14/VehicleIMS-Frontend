@@ -20,16 +20,18 @@ import {
   Info,
   ArrowUpRight,
   MapPin,
-  RefreshCcw
+  RefreshCcw,
+  X
 } from 'lucide-react';
 import truckImg from '../../assets/customer-img/GT.png';
 import dashboardService from '../../services/dashboardService';
 import type { DashboardStats, Vehicle, Transaction } from '../../services/dashboardService';
 import authService from '../../services/authService';
-import customerService, { type VehicleResponse } from '../../services/customerService';
+import customerService, { type VehicleResponse, type NotificationResponse } from '../../services/customerService';
 import { CustomerServices } from './CustomerServices';
 import { CustomerHistory } from './CustomerHistory';
 import { CustomerVehicles } from './CustomerVehicles';
+import CustomerBilling from './CustomerBilling';
 import { Car } from 'lucide-react';
 import type { ServiceHistoryItem } from './CustomerHistory';
 
@@ -39,7 +41,7 @@ const CustomerDashboard: FC = () => {
   const user = authService.getCurrentUser();
   
   // Navigation State
-  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'history' | 'garage'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'history' | 'garage' | 'billing'>('dashboard');
 
   // Backend States
   const [stats, setStats] = useState<DashboardStats | null>(null);
@@ -47,7 +49,11 @@ const CustomerDashboard: FC = () => {
   const [dbVehicles, setDbVehicles] = useState<VehicleResponse[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
   const [dbServiceHistory, setDbServiceHistory] = useState<ServiceHistoryItem[]>([]);
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [customerName, setCustomerName] = useState<string>('');
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Telemetry & Loading States
   const [loading, setLoading] = useState(true);
@@ -75,11 +81,21 @@ const CustomerDashboard: FC = () => {
         if (searchRes && searchRes.length > 0) {
           const matchedCust = searchRes[0];
           setCustomerId(matchedCust.id);
+          setUserId(matchedCust.userId);
+          setCustomerName(matchedCust.fullName || matchedCust.username || user.userName);
           setDbVehicles(matchedCust.vehicles || []);
           
           // Fetch completed service history from DB
           const historyData = await customerService.getHistory(matchedCust.id);
           setDbServiceHistory(historyData.serviceHistory || []);
+
+          // Fetch notifications from PostgreSQL
+          try {
+            const notifs = await customerService.getCustomerNotifications(matchedCust.userId);
+            setNotifications(notifs || []);
+          } catch (notifErr) {
+            console.error("Failed to load customer database notifications:", notifErr);
+          }
         }
       }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,6 +105,25 @@ const CustomerDashboard: FC = () => {
       setError(`Failed to connect to the backend server. Technical details: ${message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMarkAsRead = async (id: number) => {
+    try {
+      await customerService.markNotificationAsRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    } catch (err) {
+      console.error("Failed to dismiss notification:", err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (!userId) return;
+    try {
+      await customerService.markAllNotificationsAsRead(userId);
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    } catch (err) {
+      console.error("Failed to mark all notifications as read:", err);
     }
   };
 
@@ -102,7 +137,7 @@ const CustomerDashboard: FC = () => {
     fetchData();
     
     interface LocationState {
-      activeView?: 'dashboard' | 'services' | 'history' | 'garage';
+      activeView?: 'dashboard' | 'services' | 'history' | 'garage' | 'billing';
     }
     const state = location.state as LocationState;
     if (state && state.activeView) {
@@ -190,6 +225,13 @@ const CustomerDashboard: FC = () => {
             <Car className="w-5 h-5" />
             <span className="text-sm tracking-tight">My Garage</span>
           </button>
+          <button 
+            onClick={() => setActiveView('billing')}
+            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'billing' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+          >
+            <CreditCard className="w-5 h-5" />
+            <span className="text-sm tracking-tight">Billing & Invoices</span>
+          </button>
         </nav>
 
         <div className="px-6 py-8 border-t border-white/5 space-y-6">
@@ -236,41 +278,13 @@ const CustomerDashboard: FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-10">
-            <nav className="flex items-center gap-10">
-              <button 
-                onClick={() => setActiveView('dashboard')}
-                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'dashboard' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
-              >
-                Dashboard
-                {activeView === 'dashboard' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
-              </button>
-              <button 
-                onClick={() => setActiveView('services')}
-                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'services' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
-              >
-                Scheduler & Sourcing
-                {activeView === 'services' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
-              </button>
-              <button 
-                onClick={() => setActiveView('history')}
-                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'history' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
-              >
-                History & Reviews
-                {activeView === 'history' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
-              </button>
-              <button 
-                onClick={() => setActiveView('garage')}
-                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'garage' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
-              >
-                My Garage
-                {activeView === 'garage' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
-              </button>
-            </nav>
-
-            <div className="flex items-center gap-6 pl-10 border-l border-secondary/20">
-              <div className="flex gap-2">
-                <HeaderIcon icon={Bell} badge />
+          <div className="flex items-center gap-6">
+            <div className="flex gap-2">
+                <HeaderIcon 
+                  icon={Bell} 
+                  badge={notifications.filter(n => !n.isRead).length > 0} 
+                  onClick={() => setShowNotifications(true)} 
+                />
                 <HeaderIcon icon={Settings} onClick={() => navigate('/profile')} />
               </div>
               <div 
@@ -278,15 +292,14 @@ const CustomerDashboard: FC = () => {
                 className="flex items-center gap-4 ml-2 group cursor-pointer"
               >
                 <div className="text-right">
-                  <p className="font-black text-sm leading-none">{user?.userName || 'User'}</p>
+                  <p className="font-black text-sm leading-none">{customerName || user?.userName || 'User'}</p>
                   <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Member'}</p>
                 </div>
                 <div className="w-11 h-11 rounded-2xl overflow-hidden ring-4 ring-secondary/10 group-hover:ring-primary/10 transition-all shadow-lg">
-                  <img src={`https://ui-avatars.com/api/?name=${user?.userName || 'User'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
+                  <img src={`https://ui-avatars.com/api/?name=${customerName || user?.userName || 'User'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
                 </div>
               </div>
             </div>
-          </div>
         </header>
  
         {/* Dynamic Main Body Content */}
@@ -300,7 +313,7 @@ const CustomerDashboard: FC = () => {
                   <div className="col-span-12 lg:col-span-6 bg-white rounded-4xl p-10 relative overflow-hidden flex flex-col justify-between border border-secondary/20 shadow-sm group">
                       <div className="relative z-10">
                         <span className="inline-block px-3 py-1 bg-primary/5 text-[10px] font-black text-primary uppercase tracking-[0.2em] rounded-full mb-4">Personal Portal</span>
-                        <h2 className="text-5xl font-heading font-extrabold mb-4 tracking-tighter">Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-primary/60">{user?.userName?.split(' ')[0] || 'Rider'}.</span></h2>
+                        <h2 className="text-5xl font-heading font-extrabold mb-4 tracking-tighter">Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-black to-primary/60">{(customerName || user?.userName || 'Rider').split(' ')[0]}.</span></h2>
                         <p className="text-primary/60 text-base max-w-md leading-relaxed font-medium">
                           Your V-Series GT is currently in peak performance. All systems report nominal status for the upcoming season.
                         </p>
@@ -336,7 +349,10 @@ const CustomerDashboard: FC = () => {
                       <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #{stats?.lastInvoiceNumber || 'N/A'}</p>
                       <p className="text-4xl font-heading font-extrabold tracking-tighter">RS {stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
                     </div>
-                    <button className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl">
+                    <button 
+                      onClick={() => setActiveView('billing')}
+                      className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl"
+                    >
                       Pay Balance
                     </button>
                   </div>
@@ -527,6 +543,14 @@ const CustomerDashboard: FC = () => {
                 fetchData={fetchData}
               />
             )}
+
+            {/* BILLING VIEW: Sales Invoices & Statements */}
+            {activeView === 'billing' && (
+              <CustomerBilling 
+                customerId={customerId}
+                onBackToDashboard={() => setActiveView('dashboard')}
+              />
+            )}
           </div>
         </main>
 
@@ -543,6 +567,123 @@ const CustomerDashboard: FC = () => {
           </div>
         </footer>
       </div>
+
+      {/* Database-Connected Sliding Notifications Drawer */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-[9999] flex justify-end bg-black/40 backdrop-blur-sm animate-fade-in">
+          {/* Dismiss Overlay */}
+          <div onClick={() => setShowNotifications(false)} className="absolute inset-0 cursor-default" />
+
+          {/* Drawer Panel */}
+          <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col justify-between overflow-hidden animate-slide-left border-l border-secondary/20 z-[9999]">
+            {/* Header */}
+            <div className="p-6 border-b border-secondary/15 flex items-center justify-between bg-[#fcfcfb]">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <Bell className="w-5 h-5 text-primary" />
+                  {notifications.filter(n => !n.isRead).length > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white animate-pulse" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-primary">Notifications Panel</h3>
+                  <p className="text-[10px] text-tertiary font-bold">{notifications.filter(n => !n.isRead).length} UNREAD ALERTS</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                {notifications.filter(n => !n.isRead).length > 0 && (
+                  <button
+                    onClick={handleMarkAllAsRead}
+                    className="text-[9px] font-black uppercase tracking-widest text-secondary hover:text-black transition-colors"
+                  >
+                    Mark all read
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowNotifications(false)}
+                  className="p-1.5 border border-secondary/20 rounded-lg hover:bg-neutral transition-all"
+                >
+                  <X className="w-4 h-4 text-tertiary" />
+                </button>
+              </div>
+            </div>
+
+            {/* Notification List Body */}
+            <div className="flex-1 overflow-y-auto divide-y divide-secondary/10">
+              {notifications.length === 0 ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center h-full">
+                  <Bell className="w-10 h-10 text-secondary/30 mb-3" />
+                  <h4 className="text-xs font-black uppercase tracking-wider text-primary">All caught up!</h4>
+                  <p className="text-[10px] text-tertiary mt-1">No alerts or logs in your history right now.</p>
+                </div>
+              ) : (
+                notifications.map((n) => {
+                  let IconComponent = Bell;
+                  let iconColor = "bg-[#f5f5f3] text-tertiary";
+                  
+                  const msg = n.message.toLowerCase();
+                  if (msg.includes("invoice") || msg.includes("balance") || msg.includes("payment") || msg.includes("outstanding")) {
+                    IconComponent = CreditCard;
+                    iconColor = "bg-amber-50 text-amber-600 border border-amber-100";
+                  } else if (msg.includes("part") || msg.includes("stock") || msg.includes("inventory")) {
+                    IconComponent = Fuel;
+                    iconColor = "bg-rose-50 text-rose-600 border border-rose-100";
+                  } else if (msg.includes("service") || msg.includes("maintenance") || msg.includes("appointment")) {
+                    IconComponent = Wrench;
+                    iconColor = "bg-emerald-50 text-emerald-600 border border-emerald-100";
+                  } else if (msg.includes("vehicle") || msg.includes("car")) {
+                    IconComponent = Car;
+                    iconColor = "bg-blue-50 text-blue-600 border border-blue-100";
+                  }
+
+                  return (
+                    <div 
+                      key={n.id} 
+                      className={`p-5 flex items-start gap-4 transition-all hover:bg-[#fcfcfb] group relative ${!n.isRead ? "bg-blue-50/5" : ""}`}
+                    >
+                      {/* Unread indicator dot */}
+                      {!n.isRead && (
+                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
+                      )}
+
+                      {/* Icon wrapper */}
+                      <div className={`p-2.5 rounded-xl shrink-0 ${iconColor}`}>
+                        <IconComponent className="w-4 h-4" />
+                      </div>
+
+                      {/* Message Content */}
+                      <div className="flex-1 space-y-1">
+                        <p className={`text-xs leading-relaxed font-semibold ${!n.isRead ? "text-primary font-bold" : "text-[#555] font-medium"}`}>
+                          {n.message}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-bold text-tertiary tracking-wide">
+                            {new Date(n.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {!n.isRead && (
+                            <button
+                              onClick={() => handleMarkAsRead(n.id)}
+                              className="text-[9px] font-black uppercase tracking-wider text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
+                            >
+                              Dismiss
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-secondary/15 text-center bg-[#fcfcfb]">
+              <span className="text-[8px] font-black tracking-widest text-tertiary uppercase">EngineCore Alert Protocols v1.2</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
