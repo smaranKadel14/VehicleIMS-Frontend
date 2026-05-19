@@ -4,12 +4,9 @@ import type { SalesInvoiceResponse } from "../../services/customerService";
 import {
   CreditCard,
   Receipt,
-  ArrowUpRight,
   TrendingUp,
-  Download,
   Printer,
   X,
-  FileSpreadsheet,
   Clock,
   CheckCircle2,
   AlertTriangle,

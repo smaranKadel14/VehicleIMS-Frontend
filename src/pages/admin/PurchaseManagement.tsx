@@ -4,12 +4,7 @@ import {
   LayoutDashboard, 
   Package, 
   Settings, 
-  LogOut, 
-  Search, 
-  Bell, 
-  Clock, 
   Zap, 
-  TrendingUp,
   AlertCircle,
   Users,
   ShieldCheck,
@@ -23,6 +18,9 @@ import {
   FileCheck
 } from 'lucide-react';
 import authService from "../../services/authService";
+import { Sidebar } from "../../components/layout/Sidebar";
+import { Topbar } from "../../components/layout/Topbar";
+import { AdminStatCard } from "../../components/ui/AdminStatCard";
 import purchaseService from "../../services/purchaseService";
 import type { PurchaseInvoiceResponse, CreatePurchaseInvoiceRequest } from "../../services/purchaseService";
 import partService from "../../services/partService";
@@ -63,42 +61,6 @@ function getCategoryFromSku(sku: string): string {
 }
 
 // Reusable components
-const NavItem = ({ icon: Icon, label, active = false, onClick }: { icon: any, label: string, active?: boolean, onClick?: () => void }) => (
-  <button 
-    onClick={onClick}
-    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-  >
-    <Icon className={`w-5 h-5 transition-transform duration-150 ease-out ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
-    <span className="text-sm tracking-tight">{label}</span>
-  </button>
-);
-
-const HeaderIcon = ({ icon: Icon, badge = false }: { icon: any, badge?: boolean }) => (
-  <button className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group">
-    <Icon className="w-5 h-5 group-active:scale-90 transition-transform" />
-    {badge && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>}
-  </button>
-);
-
-const AdminStatCard = ({ label, value, trend, icon: Icon, variant = 'white' }: { label: string, value: string, trend: string, icon: any, variant?: 'white' | 'gray' | 'black' }) => (
-  <div className={`rounded-3xl p-6 transition-all duration-200 ease-out hover:shadow-xl hover:-translate-y-1 flex flex-col justify-between min-h-[170px] cursor-default ${
-    variant === 'black' ? 'bg-black text-neutral' : 
-    variant === 'gray' ? 'bg-[#D4D4D4] text-primary' : 
-    'bg-white shadow-sm border border-secondary/10'
-  }`}>
-    <div className="flex justify-between items-start">
-      <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${variant === 'black' ? 'text-neutral/40' : 'text-tertiary'}`}>{label}</p>
-      <Icon className={`w-5 h-5 ${variant === 'black' ? 'text-neutral/40' : 'text-tertiary'}`} />
-    </div>
-    <div className="mt-4">
-      <p className="text-3xl font-heading font-extrabold tracking-tighter leading-none">{value}</p>
-    </div>
-    <div className={`mt-4 flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase ${variant === 'black' ? 'text-neutral/30' : 'text-tertiary opacity-80'}`}>
-       {trend.toLowerCase().includes('critical') ? <Clock className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-       {trend}
-     </div>
-  </div>
-);
 
 export default function PurchaseManagement() {
   const navigate = useNavigate();
@@ -195,53 +157,25 @@ export default function PurchaseManagement() {
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
       
-      {/* Sidebar */}
-      <aside className="w-[280px] h-screen bg-[#1A1A1A] text-neutral flex flex-col shrink-0 z-20 shadow-2xl overflow-hidden sticky top-0">
-        <div className="p-8 flex items-center gap-4">
-          <div className="w-12 h-12 bg-neutral rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-110 transition-transform cursor-pointer">
-            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center">
-               <Zap className="w-4 h-4 text-neutral fill-neutral" />
-            </div>
-          </div>
-          <div>
-            <h1 className="font-heading font-extrabold text-xl leading-tight uppercase tracking-tighter">Enginecore</h1>
-            <p className="text-[10px] text-tertiary uppercase tracking-[0.3em] font-bold opacity-70">V-Series Portal</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-6 py-8 space-y-3">
-          {NAV_ITEMS.map((item) => (
-            <NavItem 
-              key={item.label} 
-              icon={item.icon} 
-              label={item.label} 
-              active={item.active} 
-              onClick={() => item.path !== "#" && navigate(item.path)} 
-            />
-          ))}
-        </nav>
-
-        <div className="px-6 py-8 border-t border-white/5 space-y-6">
-          <button 
-            onClick={() => setModal("add")}
-            className="w-full bg-neutral text-black py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 transition-all active:scale-95"
-          >
-            Log Bulk Purchase
-          </button>
-          
-          <div className="space-y-2">
-            <button className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left">
-              <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" /> Settings
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all text-sm font-bold group text-left"
-            >
-              <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Sign Out
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        logoTitle="Enginecore"
+        logoSubtitle="V-Series Portal"
+        logoIcon={Zap}
+        items={NAV_ITEMS.map((item) => ({
+          icon: item.icon,
+          label: item.label,
+          active: item.active || false,
+          onClick: () => { if (item.path !== "#") navigate(item.path); }
+        }))}
+        actionButton={{
+          label: "Log Bulk Purchase",
+          onClick: () => setModal("add")
+        }}
+        footerItems={[
+          { icon: Settings, label: "Settings", onClick: () => {} }
+        ]}
+        handleLogout={handleLogout}
+      />
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative h-screen">
@@ -260,38 +194,13 @@ export default function PurchaseManagement() {
         )}
 
         {/* Topbar */}
-        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-secondary/20 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
-          <div className="flex-1 max-w-xl">
-            <div className="relative group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-tertiary group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search purchases by Invoice # or Supplier..." 
-                className="w-full bg-[#F5F5F3]/50 border-none rounded-2xl py-3.5 pl-14 pr-6 text-sm focus:ring-4 focus:ring-primary/5 transition-all placeholder:text-tertiary font-medium"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-10">
-            <div className="flex items-center gap-6 pl-10 border-l border-secondary/20">
-              <div className="flex gap-2">
-                <HeaderIcon icon={Bell} badge />
-                <HeaderIcon icon={Settings} />
-              </div>
-              <div className="flex items-center gap-4 ml-2 group cursor-pointer">
-                <div className="text-right">
-                  <p className="font-black text-sm leading-none">{user?.userName || 'Admin'}</p>
-                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Administrator'}</p>
-                </div>
-                <div className="w-11 h-11 rounded-2xl overflow-hidden ring-4 ring-secondary/10 group-hover:ring-primary/10 transition-all shadow-lg">
-                  <img src={`https://ui-avatars.com/api/?name=${user?.userName || 'Admin'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
+        <Topbar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search purchases by Invoice # or Supplier..."
+          userName={user?.userName || "Admin"}
+          userRole={user?.roles?.[0] || "Administrator"}
+        />
 
         {/* Content Body */}
         <main className="flex-1 p-10">

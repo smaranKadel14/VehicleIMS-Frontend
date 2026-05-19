@@ -10,6 +10,8 @@ import CustomerDashboard from "../pages/customer/Dashboard";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import StaffManagement from "../pages/admin/StaffManagement";
 import StaffDashboard from "../pages/staff/StaffDashboard";
+import StaffReports from "../pages/staff/StaffReports";
+import StaffPerformance from "../pages/staff/StaffPerformance";
 import PurchaseManagement from "../pages/admin/PurchaseManagement";
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -56,7 +58,7 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/customers" 
+        path="/staff/customers" 
         element={
           <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
             <CustomerDirectory />
@@ -64,10 +66,26 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/staff-dashboard" 
+        path="/staff/dashboard" 
         element={
           <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
             <StaffDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/staff/reports" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+            <StaffReports />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/staff/performance" 
+        element={
+          <ProtectedRoute allowedRoles={['Admin', 'Staff']}>
+            <StaffPerformance />
           </ProtectedRoute>
         } 
       />

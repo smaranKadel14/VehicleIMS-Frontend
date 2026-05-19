@@ -24,7 +24,7 @@ const Login: React.FC = () => {
       if (response.roles.includes('Admin')) {
         navigate('/admin-dashboard');
       } else if (response.roles.includes('Staff')) {
-        navigate('/staff-dashboard');
+        navigate('/staff/dashboard');
       } else {
         navigate('/dashboard');
       }

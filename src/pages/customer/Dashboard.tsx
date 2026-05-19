@@ -5,10 +5,7 @@ import {
   LayoutDashboard, 
   Wrench, 
   BarChart3, 
-  Settings, 
-  LogOut, 
-  Search, 
-  Bell, 
+  Settings,
   Clock, 
   CreditCard, 
   Zap,
@@ -20,8 +17,7 @@ import {
   Info,
   ArrowUpRight,
   MapPin,
-  RefreshCcw,
-  X
+  RefreshCcw
 } from 'lucide-react';
 import truckImg from '../../assets/customer-img/GT.png';
 import dashboardService from '../../services/dashboardService';
@@ -34,6 +30,12 @@ import { CustomerVehicles } from './CustomerVehicles';
 import CustomerBilling from './CustomerBilling';
 import { Car } from 'lucide-react';
 import type { ServiceHistoryItem } from './CustomerHistory';
+
+// Shared global components
+import { Sidebar } from '../../components/layout/Sidebar';
+import { Topbar } from '../../components/layout/Topbar';
+import { MetricCard } from '../../components/ui/MetricCard';
+import { NotificationDrawer } from '../../components/ui/NotificationDrawer';
 
 const CustomerDashboard: FC = () => {
   const navigate = useNavigate();
@@ -182,82 +184,26 @@ const CustomerDashboard: FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[280px] h-screen bg-[#1A1A1A] text-neutral flex flex-col shrink-0 z-20 shadow-2xl animate-fade-in overflow-hidden sticky top-0">
-        <div className="p-8 flex items-center gap-4">
-          <div className="w-12 h-12 bg-neutral rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-110 transition-transform cursor-pointer">
-            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center">
-               <Zap className="w-4 h-4 text-neutral fill-neutral" />
-            </div>
-          </div>
-          <div>
-            <h1 className="font-heading font-extrabold text-xl leading-tight uppercase tracking-tighter">Enginecore</h1>
-            <p className="text-[10px] text-tertiary uppercase tracking-[0.3em] font-bold opacity-70">V-Series Portal</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-6 py-8 space-y-3">
-          <button 
-            onClick={() => setActiveView('dashboard')}
-            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'dashboard' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-          >
-            <LayoutDashboard className="w-5 h-5" />
-            <span className="text-sm tracking-tight">Dashboard</span>
-          </button>
-          <button 
-            onClick={() => setActiveView('services')}
-            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'services' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-          >
-            <Wrench className="w-5 h-5" />
-            <span className="text-sm tracking-tight">Service Scheduler</span>
-          </button>
-          <button 
-            onClick={() => setActiveView('history')}
-            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'history' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-          >
-            <Clock className="w-5 h-5" />
-            <span className="text-sm tracking-tight">History & Reviews</span>
-          </button>
-          <button 
-            onClick={() => setActiveView('garage')}
-            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'garage' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-          >
-            <Car className="w-5 h-5" />
-            <span className="text-sm tracking-tight">My Garage</span>
-          </button>
-          <button 
-            onClick={() => setActiveView('billing')}
-            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'billing' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-          >
-            <CreditCard className="w-5 h-5" />
-            <span className="text-sm tracking-tight">Billing & Invoices</span>
-          </button>
-        </nav>
-
-        <div className="px-6 py-8 border-t border-white/5 space-y-6">
-          <button 
-            onClick={() => setActiveView('services')}
-            className="w-full bg-neutral text-black py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 transition-all active:scale-95"
-          >
-            New Part Request
-          </button>
-          
-          <div className="space-y-2">
-            <button 
-              onClick={() => navigate('/profile')}
-              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left"
-            >
-              <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" /> Settings
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all text-sm font-bold group text-left"
-            >
-              <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Sign Out
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        logoTitle="EngineCore"
+        logoSubtitle="V-Series Portal"
+        logoIcon={Zap}
+        items={[
+          { icon: LayoutDashboard, label: "Dashboard", active: activeView === 'dashboard', onClick: () => setActiveView('dashboard') },
+          { icon: Wrench, label: "Service Scheduler", active: activeView === 'services', onClick: () => setActiveView('services') },
+          { icon: Clock, label: "History & Reviews", active: activeView === 'history', onClick: () => setActiveView('history') },
+          { icon: Car, label: "My Garage", active: activeView === 'garage', onClick: () => setActiveView('garage') },
+          { icon: CreditCard, label: "Billing & Invoices", active: activeView === 'billing', onClick: () => setActiveView('billing') }
+        ]}
+        footerItems={[
+          { icon: Settings, label: "Settings", onClick: () => navigate('/profile') }
+        ]}
+        actionButton={{
+          label: "New Part Request",
+          onClick: () => setActiveView('services')
+        }}
+        handleLogout={handleLogout}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative h-screen custom-scrollbar">
@@ -265,42 +211,18 @@ const CustomerDashboard: FC = () => {
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[120px] -z-10 rounded-full opacity-30 pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-secondary/10 blur-[100px] -z-10 rounded-full opacity-20 pointer-events-none"></div>
 
-        {/* Header */}
-        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-secondary/20 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
-          <div className="flex-1 max-w-xl">
-            <div className="relative group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-tertiary group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search components, parts, or VIN..." 
-                className="w-full bg-[#F5F5F3]/50 border-none rounded-2xl py-3.5 pl-14 pr-6 text-sm focus:ring-4 focus:ring-primary/5 transition-all placeholder:text-tertiary font-medium"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="flex gap-2">
-                <HeaderIcon 
-                  icon={Bell} 
-                  badge={notifications.filter(n => !n.isRead).length > 0} 
-                  onClick={() => setShowNotifications(true)} 
-                />
-                <HeaderIcon icon={Settings} onClick={() => navigate('/profile')} />
-              </div>
-              <div 
-                onClick={() => navigate('/profile')}
-                className="flex items-center gap-4 ml-2 group cursor-pointer"
-              >
-                <div className="text-right">
-                  <p className="font-black text-sm leading-none">{customerName || user?.userName || 'User'}</p>
-                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Member'}</p>
-                </div>
-                <div className="w-11 h-11 rounded-2xl overflow-hidden ring-4 ring-secondary/10 group-hover:ring-primary/10 transition-all shadow-lg">
-                  <img src={`https://ui-avatars.com/api/?name=${customerName || user?.userName || 'User'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
-                </div>
-              </div>
-            </div>
-        </header>
+        {/* Reusable Topbar header */}
+        <Topbar
+          searchQuery=""
+          onSearchChange={() => {}}
+          searchPlaceholder="Search components, parts, or VIN..."
+          notificationBadgeCount={notifications.filter(n => !n.isRead).length}
+          onNotificationClick={() => setShowNotifications(true)}
+          onSettingsClick={() => navigate('/profile')}
+          userName={customerName || user?.userName || 'User'}
+          userRole={user?.roles?.[0] || 'Member'}
+          onProfileClick={() => navigate('/profile')}
+        />
  
         {/* Dynamic Main Body Content */}
         <main className="flex-1 p-10">
@@ -340,21 +262,16 @@ const CustomerDashboard: FC = () => {
                   </div>
 
                   {/* Pending Balance */}
-                  <div className="col-span-12 md:col-span-6 lg:col-span-3 bg-[#1A1A1A] text-neutral rounded-4xl p-8 flex flex-col justify-between border border-black shadow-2xl group hover:scale-[1.02] transition-transform">
-                    <div className="bg-white/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6 shadow-inner group-hover:rotate-12 transition-transform">
-                      <CreditCard className="w-6 h-6 text-neutral" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-neutral/50 mb-1">Pending Balance</p>
-                      <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] font-black mb-3">Invoice: #{stats?.lastInvoiceNumber || 'N/A'}</p>
-                      <p className="text-4xl font-heading font-extrabold tracking-tighter">RS {stats?.pendingBalance.toLocaleString() || '0'}.<span className="text-2xl opacity-50">00</span></p>
-                    </div>
-                    <button 
-                      onClick={() => setActiveView('billing')}
-                      className="w-full bg-neutral text-black py-3.5 rounded-xl font-black text-xs uppercase tracking-widest mt-8 hover:bg-neutral/90 transition-all active:scale-95 shadow-xl"
-                    >
-                      Pay Balance
-                    </button>
+                  <div className="col-span-12 md:col-span-6 lg:col-span-3">
+                    <MetricCard
+                      title="Pending Balance"
+                      invoiceInfo={stats?.lastInvoiceNumber ? `Invoice: #${stats.lastInvoiceNumber}` : "Invoice: N/A"}
+                      value={`RS ${stats?.pendingBalance.toLocaleString() || '0'}.00`}
+                      icon={CreditCard}
+                      dark={true}
+                      buttonText="Pay Balance"
+                      onButtonClick={() => setActiveView('billing')}
+                    />
                   </div>
 
                   {/* Service Recommendation */}
@@ -568,136 +485,24 @@ const CustomerDashboard: FC = () => {
         </footer>
       </div>
 
-      {/* Database-Connected Sliding Notifications Drawer */}
-      {showNotifications && (
-        <div className="fixed inset-0 z-[9999] flex justify-end bg-black/40 backdrop-blur-sm animate-fade-in">
-          {/* Dismiss Overlay */}
-          <div onClick={() => setShowNotifications(false)} className="absolute inset-0 cursor-default" />
-
-          {/* Drawer Panel */}
-          <div className="relative w-full max-w-md h-full bg-white shadow-2xl flex flex-col justify-between overflow-hidden animate-slide-left border-l border-secondary/20 z-[9999]">
-            {/* Header */}
-            <div className="p-6 border-b border-secondary/15 flex items-center justify-between bg-[#fcfcfb]">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Bell className="w-5 h-5 text-primary" />
-                  {notifications.filter(n => !n.isRead).length > 0 && (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-white animate-pulse" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-primary">Notifications Panel</h3>
-                  <p className="text-[10px] text-tertiary font-bold">{notifications.filter(n => !n.isRead).length} UNREAD ALERTS</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                {notifications.filter(n => !n.isRead).length > 0 && (
-                  <button
-                    onClick={handleMarkAllAsRead}
-                    className="text-[9px] font-black uppercase tracking-widest text-secondary hover:text-black transition-colors"
-                  >
-                    Mark all read
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  className="p-1.5 border border-secondary/20 rounded-lg hover:bg-neutral transition-all"
-                >
-                  <X className="w-4 h-4 text-tertiary" />
-                </button>
-              </div>
-            </div>
-
-            {/* Notification List Body */}
-            <div className="flex-1 overflow-y-auto divide-y divide-secondary/10">
-              {notifications.length === 0 ? (
-                <div className="p-12 text-center flex flex-col items-center justify-center h-full">
-                  <Bell className="w-10 h-10 text-secondary/30 mb-3" />
-                  <h4 className="text-xs font-black uppercase tracking-wider text-primary">All caught up!</h4>
-                  <p className="text-[10px] text-tertiary mt-1">No alerts or logs in your history right now.</p>
-                </div>
-              ) : (
-                notifications.map((n) => {
-                  let IconComponent = Bell;
-                  let iconColor = "bg-[#f5f5f3] text-tertiary";
-                  
-                  const msg = n.message.toLowerCase();
-                  if (msg.includes("invoice") || msg.includes("balance") || msg.includes("payment") || msg.includes("outstanding")) {
-                    IconComponent = CreditCard;
-                    iconColor = "bg-amber-50 text-amber-600 border border-amber-100";
-                  } else if (msg.includes("part") || msg.includes("stock") || msg.includes("inventory")) {
-                    IconComponent = Fuel;
-                    iconColor = "bg-rose-50 text-rose-600 border border-rose-100";
-                  } else if (msg.includes("service") || msg.includes("maintenance") || msg.includes("appointment")) {
-                    IconComponent = Wrench;
-                    iconColor = "bg-emerald-50 text-emerald-600 border border-emerald-100";
-                  } else if (msg.includes("vehicle") || msg.includes("car")) {
-                    IconComponent = Car;
-                    iconColor = "bg-blue-50 text-blue-600 border border-blue-100";
-                  }
-
-                  return (
-                    <div 
-                      key={n.id} 
-                      className={`p-5 flex items-start gap-4 transition-all hover:bg-[#fcfcfb] group relative ${!n.isRead ? "bg-blue-50/5" : ""}`}
-                    >
-                      {/* Unread indicator dot */}
-                      {!n.isRead && (
-                        <span className="absolute left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-blue-500 rounded-full" />
-                      )}
-
-                      {/* Icon wrapper */}
-                      <div className={`p-2.5 rounded-xl shrink-0 ${iconColor}`}>
-                        <IconComponent className="w-4 h-4" />
-                      </div>
-
-                      {/* Message Content */}
-                      <div className="flex-1 space-y-1">
-                        <p className={`text-xs leading-relaxed font-semibold ${!n.isRead ? "text-primary font-bold" : "text-[#555] font-medium"}`}>
-                          {n.message}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-tertiary tracking-wide">
-                            {new Date(n.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                          {!n.isRead && (
-                            <button
-                              onClick={() => handleMarkAsRead(n.id)}
-                              className="text-[9px] font-black uppercase tracking-wider text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity hover:underline"
-                            >
-                              Dismiss
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 border-t border-secondary/15 text-center bg-[#fcfcfb]">
-              <span className="text-[8px] font-black tracking-widest text-tertiary uppercase">EngineCore Alert Protocols v1.2</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Reusable premium NotificationDrawer */}
+      <NotificationDrawer
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications.map(n => ({
+          id: n.id,
+          message: n.message,
+          isRead: n.isRead,
+          date: n.createdAt
+        }))}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
+      />
     </div>
   );
 };
 
 // Helper Components
-const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: ComponentType<{ className?: string }>, badge?: boolean, onClick?: () => void }) => (
-  <button 
-    onClick={onClick}
-    className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group"
-  >
-    <Icon className="w-5 h-5 group-active:scale-90 transition-transform" />
-    {badge && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>}
-  </button>
-);
 
 const TelemetryStat = ({ label, value, icon: Icon, color = "text-primary" }: { label: string, value: string, icon: ComponentType<{ className?: string }>, color?: string }) => (
   <div className="p-8 group hover:bg-secondary/5 transition-colors cursor-default">

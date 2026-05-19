@@ -25,7 +25,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
         return <Navigate to="/admin-dashboard" replace />;
       }
       if (user.roles.includes('Staff')) {
-        return <Navigate to="/staff-dashboard" replace />;
+        return <Navigate to="/staff/dashboard" replace />;
       }
       return <Navigate to="/dashboard" replace />;
     }

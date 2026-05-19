@@ -4,19 +4,26 @@ import {
   Search, 
   LayoutDashboard,
   Users, 
-  Settings, 
-  LogOut, 
-  Bell, 
+  Settings,  
   Package, 
   Shield, 
   Car, 
   Trash2, 
   Edit3,
-  Plus
+  Activity,
+  BarChart3
 } from "lucide-react";
 import authService from "../../services/authService";
 import customerService from "../../services/customerService";
 import type { CustomerHistoryResponse } from "../../services/customerService";
+import partService from "../../services/partService";
+import salesService from "../../services/salesService";
+import type { PartResponse } from "../../services/partService";
+import SellPartsModal from "../../components/staff/SellPartsModal";
+
+// Shared global components
+import { Sidebar } from '../../components/layout/Sidebar';
+import { Topbar } from '../../components/layout/Topbar';
 
 // Data types and interface definitions
 type CustomerStatus = "Active" | "Inactive";
@@ -275,8 +282,154 @@ function DeleteModal({ customer, onClose, onConfirm }: { customer: Customer; onC
     </div>
   );
 }
+function CustomerHistoryModal({
+  customer,
+  history,
+  onClose,
+}: {
+  customer: Customer;
+  history: CustomerHistoryResponse | null;
+  onClose: () => void;
+}) {
+  const [activeSubTab, setActiveSubTab] = useState<"invoices" | "services">("invoices");
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+      <div style={{ background: "#FFFFFF", borderRadius: 16, padding: 32, width: 600, boxShadow: "0 20px 60px rgba(0,0,0,0.15)", boxSizing: "border-box", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
+        
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>Activity History Logs</h3>
+            <p style={{ fontSize: 13, color: "#6B7280", margin: "4px 0 0" }}>Detailed records for <strong>{customer.name}</strong></p>
+          </div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#6b7280" }}>✕</button>
+        </div>
+
+        {/* Info Badges */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
+          <div style={{ flex: 1, background: "#F3F4F6", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#9CA3AF", display: "block" }}>TOTAL REVENUE</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>RS {(history?.totalSpent || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+          </div>
+          <div style={{ flex: 1, background: "#F3F4F6", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#9CA3AF", display: "block" }}>TOTAL TRANSACTIONS</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{history?.totalInvoices || 0}</span>
+          </div>
+          <div style={{ flex: 1, background: "#F3F4F6", borderRadius: 10, padding: "10px 14px", textAlign: "center" }}>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#9CA3AF", display: "block" }}>WORKSHOP SERVICES</span>
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{history?.totalServices || 0}</span>
+          </div>
+        </div>
+
+        {/* Tab Controls */}
+        <div style={{ display: "flex", borderBottom: "1.5px solid #F3F4F6", marginBottom: 20 }}>
+          <button 
+            onClick={() => setActiveSubTab("invoices")}
+            style={{ 
+              padding: "10px 20px", 
+              border: "none", 
+              background: "none", 
+              fontSize: 13, 
+              fontWeight: 700, 
+              color: activeSubTab === "invoices" ? "#111827" : "#9CA3AF", 
+              borderBottom: activeSubTab === "invoices" ? "2.5px solid #111827" : "none",
+              cursor: "pointer",
+              fontFamily: "inherit"
+            }}
+          >
+            Sales Invoices ({history?.salesInvoices.length || 0})
+          </button>
+          <button 
+            onClick={() => setActiveSubTab("services")}
+            style={{ 
+              padding: "10px 20px", 
+              border: "none", 
+              background: "none", 
+              fontSize: 13, 
+              fontWeight: 700, 
+              color: activeSubTab === "services" ? "#111827" : "#9CA3AF", 
+              borderBottom: activeSubTab === "services" ? "2.5px solid #111827" : "none",
+              cursor: "pointer",
+              fontFamily: "inherit"
+            }}
+          >
+            Service Appointments ({history?.serviceHistory.length || 0})
+          </button>
+        </div>
+
+        {/* Scrollable Records */}
+        <div style={{ flex: 1, overflowY: "auto", paddingRight: 4 }}>
+          {activeSubTab === "invoices" ? (
+            <div>
+              {(!history || history.salesInvoices.length === 0) ? (
+                <div style={{ textAlign: "center", color: "#9CA3AF", padding: 32, fontSize: 13.5 }}>No recorded sales invoices.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {history.salesInvoices.map((inv) => (
+                    <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", background: "#F9FAFB", border: "1px solid #F3F4F6", borderRadius: 12 }}>
+                      <div>
+                        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#111827" }}>{inv.invoiceNumber}</span>
+                        <span style={{ fontSize: 11, color: "#9CA3AF", display: "block", marginTop: 2 }}>{new Date(inv.date).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      </div>
+                      <span style={{ fontSize: 14.5, fontWeight: 900, color: "#111827" }}>RS {inv.totalAmount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {(!history || history.serviceHistory.length === 0) ? (
+                <div style={{ textAlign: "center", color: "#9CA3AF", padding: 32, fontSize: 13.5 }}>No recorded service appointments.</div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {history.serviceHistory.map((srv) => (
+                    <div key={srv.id} style={{ padding: "14px 20px", background: "#F9FAFB", border: "1px solid #F3F4F6", borderRadius: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 800, color: "#111827" }}>{srv.vehicleName} ({srv.licensePlate})</span>
+                        <span style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", padding: "3px 8px", borderRadius: 4, background: srv.status === "Completed" ? "#DCFCE7" : "#FEF3C7", color: srv.status === "Completed" ? "#15803D" : "#B45309" }}>{srv.status}</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>{new Date(srv.appointmentDate).toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                      {srv.notes && (
+                        <div style={{ marginTop: 8, padding: "8px 12px", background: "#FFFFFF", border: "1.5px dashed #E5E7EB", borderRadius: 8, fontSize: 12, color: "#4B5563", fontStyle: "italic" }}>
+                          "{srv.notes}"
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop: "1.5px solid #F3F4F6", paddingTop: 20, marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ padding: "10px 24px", background: "#111827", color: "#FFFFFF", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Close Log</button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
 // Side drawer showing in-depth customer information
-function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Customer; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+function CustomerDrawer({ 
+  customer, 
+  onClose, 
+  onEdit, 
+  onDelete,
+  onViewHistory,
+  onNewSale 
+}: { 
+  customer: Customer; 
+  onClose: () => void; 
+  onEdit: () => void; 
+  onDelete: () => void;
+  onViewHistory: (history: CustomerHistoryResponse | null) => void;
+  onNewSale: () => void;
+}) {
   const [history, setHistory] = useState<CustomerHistoryResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -377,8 +530,18 @@ function CustomerDrawer({ customer, onClose, onEdit, onDelete }: { customer: Cus
 
         {/* Actions */}
         <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-          <button style={{ flex: 1, padding: 11, border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>View History</button>
-          <button style={{ flex: 1, padding: 11, background: "#111", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer" }}>New Sale</button>
+          <button 
+            onClick={() => onViewHistory(history)}
+            style={{ flex: 1, padding: 11, border: "1.5px solid #e5e7eb", borderRadius: 10, background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            View History
+          </button>
+          <button 
+            onClick={onNewSale}
+            style={{ flex: 1, padding: 11, background: "#111", color: "#fff", border: "none", borderRadius: 10, fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+          >
+            New Sale
+          </button>
         </div>
         <div style={{ display: "flex", gap: 10 }}>
           <button onClick={(e) => { e.stopPropagation(); onEdit(); }}
@@ -409,8 +572,10 @@ export default function CustomerSearch() {
 
   const filteredNavItems = isStaff
     ? [
-        { icon: LayoutDashboard, label: "Dashboard", path: "/staff-dashboard" },
-        { icon: Users, label: "Customers", active: true, path: "/customers" },
+        { icon: LayoutDashboard, label: "Dashboard", path: "/staff/dashboard" },
+        { icon: Activity, label: "Performance", path: "/staff/performance" },
+        { icon: BarChart3, label: "Reports", path: "/staff/reports" },
+        { icon: Users, label: "Customers", active: true, path: "/staff/customers" },
       ]
     : [
         { icon: LayoutDashboard, label: "Dashboard", path: "/admin-dashboard" },
@@ -429,6 +594,39 @@ export default function CustomerSearch() {
   const [sortBy, setSortBy]               = useState<SortOption>("Total Spend");
   const [drawer, setDrawer]               = useState<DrawerState>(null);
   const [modal, setModal]                 = useState<ModalState>(null);
+
+  // Reusable History & POS Modals
+  const [historyModalOpen, setHistoryModalOpen] = useState(false);
+  const [activeHistory, setActiveHistory] = useState<CustomerHistoryResponse | null>(null);
+  const [sellModalOpen, setSellModalOpen] = useState(false);
+  const [dbParts, setDbParts] = useState<PartResponse[]>([]);
+
+  useEffect(() => {
+    partService.getAll()
+      .then(res => setDbParts(res))
+      .catch(err => console.error("Error loading parts:", err));
+  }, []);
+
+  const handleAuthorizeSale = async (data: { customerId: number; partId: number; quantity: number; discountPercentage: number; totalAmount: number }) => {
+    try {
+      await salesService.create({
+        customerId: data.customerId,
+        isPaid: true,
+        items: [
+          {
+            partId: data.partId,
+            quantity: data.quantity,
+            unitPrice: dbParts.find(p => p.id === data.partId)?.price || 0
+          }
+        ]
+      });
+      setSellModalOpen(false);
+      await fetchCustomers();
+    } catch (err) {
+      console.error("Direct POS transaction failed:", err);
+      throw err;
+    }
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -528,118 +726,39 @@ export default function CustomerSearch() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'Inter', -apple-system, sans-serif", background: "#f3f4f6", color: "#111" }}>
 
-      {/* Sidebar */}
-      <aside style={{ width: 240, background: "#1a1a1a", display: "flex", flexDirection: "column", flexShrink: 0, position: "sticky", top: 0, height: "100vh" }}>
-
-        {/* Brand */}
-        <div style={{ padding: "24px 20px 20px", borderBottom: "1px solid #2a2a2a" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, background: "#2a2a2a", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af" }}>
-              <Settings className="w-5 h-5" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 14, color: "#fff", letterSpacing: "-0.3px" }}>EngineCore</div>
-              <div style={{ fontSize: 10, color: "#6b7280", fontWeight: 500, letterSpacing: "0.04em" }}>V-Series Portal</div>
-            </div>
-          </div>
-        </div>
-
-        <nav style={{ flex: 1, padding: "12px 0" }}>
-          {filteredNavItems.map(({ icon: Icon, label, active, path }) => (
-            <div
-              key={label}
-              onClick={() => {
-                if (path && path !== "#") navigate(path);
-              }}
-              style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "11px 20px",
-                background: active ? "#2a2a2a" : "transparent",
-                color: active ? "#fff" : "#9ca3af",
-                fontWeight: active ? 600 : 400,
-                fontSize: 13.5,
-                cursor: "pointer",
-                borderLeft: active ? "3px solid #fff" : "3px solid transparent",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "#222"; }}
-              onMouseLeave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-            >
-              <span style={{ display: "flex", alignItems: "center", opacity: active ? 1 : 0.7 }}>
-                <Icon className="w-4 h-4" />
-              </span>
-              {label}
-            </div>
-          ))}
-        </nav>
-
-        {/* New Customer Request button */}
-        <div style={{ padding: "0 16px 16px" }}>
-          <button
-            onClick={() => setModal("add")}
-            style={{ width: "100%", padding: "11px 0", background: "#2a2a2a", color: "#fff", border: "1px solid #3a3a3a", borderRadius: 8, fontWeight: 600, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-          >
-            <Plus className="w-4 h-4" /> New Customer
-          </button>
-        </div>
-
-        <div style={{ borderTop: "1px solid #2a2a2a", padding: "12px 0" }}>
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", color: "#9ca3af", fontSize: 13.5, cursor: "pointer" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#fff"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
-          >
-            <Settings className="w-4 h-4" /> Settings
-          </div>
-          <div
-            style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", color: "#9ca3af", fontSize: 13.5, cursor: "pointer" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#fff"; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
-            onClick={handleLogout}
-          >
-            <LogOut className="w-4 h-4" /> Sign Out
-          </div>
-        </div>
-      </aside>
+      {/* Reusable premium sidebar */}
+      <Sidebar
+        logoTitle="EngineCore"
+        logoSubtitle="V-Series Portal"
+        logoIcon={Settings}
+        items={filteredNavItems.map(({ icon, label, active, path }) => ({
+          icon,
+          label,
+          active: active || false,
+          onClick: () => {
+            if (path && path !== "#") navigate(path);
+          }
+        }))}
+        footerItems={[
+          { icon: Settings, label: "Settings", onClick: () => {} }
+        ]}
+        handleLogout={handleLogout}
+      />
 
       {/* Main */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* Topbar */}
-        <header style={{ background: "#fff", borderBottom: "1px solid #e5e7eb", padding: "0 32px", height: 60, display: "flex", alignItems: "center", gap: 20, flexShrink: 0, position: "sticky", top: 0, zIndex: 10 }}>
-          {/* Global search */}
-          <div style={{ position: "relative", flex: 1, maxWidth: 380 }}>
-            <Search className="w-4 h-4 text-gray-400" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
-            <input
-              placeholder="Search customer, vehicle, or VIN..."
-              style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 13, outline: "none", fontFamily: "inherit", boxSizing: "border-box", color: "#374151" }}
-            />
-          </div>
-
-          {/* Nav tabs */}
-          {["Overview", "Performance", "Reports"].map((t) => (
-            <span key={t} style={{ fontSize: 13, fontWeight: t === "Overview" ? 700 : 500, color: t === "Overview" ? "#111" : "#6b7280", cursor: "pointer", borderBottom: t === "Overview" ? "2px solid #111" : "none", paddingBottom: 2, whiteSpace: "nowrap" }}>{t}</span>
-          ))}
-
-          {/* Icons */}
-          <span style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#374151" }}>
-            <Bell className="w-5 h-5" />
-          </span>
-          <span style={{ display: "flex", alignItems: "center", cursor: "pointer", color: "#374151" }}>
-            <Settings className="w-5 h-5" />
-          </span>
-
-          {/* Staff identity */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: 4 }}>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", lineHeight: 1.2 }}>{user?.userName || 'Staff'}</div>
-              <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.05em" }}>{user?.roles?.[0] || 'SERVICE LEAD'}</div>
-            </div>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#374151", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-              {user?.userName ? user.userName.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'ST'}
-            </div>
-          </div>
-        </header>
+        {/* Reusable premium Topbar */}
+        <Topbar
+          searchQuery={search}
+          onSearchChange={setSearch}
+          searchPlaceholder="Search customer, vehicle, or VIN..."
+          notificationBadgeCount={0}
+          onNotificationClick={() => {}}
+          onLogoutClick={handleLogout}
+          userName={user?.userName || "Staff"}
+          userRole={user?.roles?.[0] || "SERVICE LEAD"}
+        />
 
         <main style={{ flex: 1, overflowY: "auto", padding: "36px 32px" }}>
 
@@ -788,6 +907,13 @@ export default function CustomerSearch() {
           onClose={() => setDrawer(null)}
           onEdit={() => openEditFor(drawer)}
           onDelete={() => openDeleteFor(drawer)}
+          onViewHistory={(hist) => {
+            setActiveHistory(hist);
+            setHistoryModalOpen(true);
+          }}
+          onNewSale={() => {
+            setSellModalOpen(true);
+          }}
         />
       )}
 
@@ -800,6 +926,31 @@ export default function CustomerSearch() {
       )}
       {modal !== null && modal !== "add" && "delete" in modal && (
         <DeleteModal customer={modal.delete} onClose={() => setModal(null)} onConfirm={handleDelete} />
+      )}
+
+      {/* Detailed Customer Activity History Logs Modal */}
+      {historyModalOpen && drawer && (
+        <CustomerHistoryModal
+          customer={drawer}
+          history={activeHistory}
+          onClose={() => {
+            setHistoryModalOpen(false);
+            setActiveHistory(null);
+          }}
+        />
+      )}
+
+      {/* POS Direct Parts Sale Modal */}
+      {sellModalOpen && drawer && (
+        <SellPartsModal
+          onClose={() => setSellModalOpen(false)}
+          onSave={handleAuthorizeSale}
+          dbParts={dbParts}
+          dbCustomers={[
+            { id: drawer.id, fullName: drawer.name, email: drawer.email },
+            ...customers.filter(c => c.id !== drawer.id).map(c => ({ id: c.id, fullName: c.name, email: c.email }))
+          ]}
+        />
       )}
     </div>
   );

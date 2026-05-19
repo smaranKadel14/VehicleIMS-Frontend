@@ -5,10 +5,7 @@ import {
   LayoutDashboard, 
   Package,
   BarChart3, 
-  Settings, 
-  LogOut, 
-  Search, 
-  Bell, 
+  Settings,  
   Clock, 
   CreditCard, 
   Zap, 
@@ -31,24 +28,10 @@ import type { FinancialReportResponse } from '../../services/reportService';
 import partService from '../../services/partService';
 import type { PartResponse } from '../../services/partService';
 import purchaseService from '../../services/purchaseService';
+import { Sidebar } from '../../components/layout/Sidebar';
+import { Topbar } from '../../components/layout/Topbar';
 
 // Helper Components
-const NavItem = ({ icon: Icon, label, active = false, delay = "", onClick }: { icon: FC<{ className?: string }>, label: string, active?: boolean, delay?: string, onClick?: () => void }) => (
-  <button 
-    onClick={onClick}
-    className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${delay} ${active ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
-  >
-    <Icon className={`w-5 h-5 transition-transform duration-150 ease-out ${active ? 'scale-110' : 'group-hover:scale-110'}`} />
-    <span className="text-sm tracking-tight">{label}</span>
-  </button>
-);
-
-const HeaderIcon = ({ icon: Icon, badge = false, onClick }: { icon: FC<{ className?: string }>, badge?: boolean, onClick?: () => void }) => (
-  <button onClick={onClick} className="relative w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/10 hover:bg-primary hover:text-neutral transition-all group">
-    <Icon className="w-5 h-5 group-active:scale-90 transition-transform" />
-    {badge && <span className="absolute top-3 right-3 w-2 h-2 bg-red-500 rounded-full border-2 border-white shadow-sm animate-pulse"></span>}
-  </button>
-);
 
 const AdminStatCard = ({ label, value, decimal, trend, icon: Icon, delay = "", variant = 'white' }: { label: string, value: string, decimal?: string, trend: string, icon: FC<{ className?: string }>, delay?: string, variant?: 'white' | 'gray' | 'black' }) => (
   <div className={`rounded-3xl p-6 transition-all duration-100 hover:duration-200 ease-out hover:shadow-xl hover:-translate-y-1 ${delay} flex flex-col justify-between min-h-[190px] cursor-default ${
@@ -211,46 +194,22 @@ const AdminDashboard: FC = () => {
 
   return (
     <div className="min-h-screen bg-[#F4F4F4] flex text-primary font-body overflow-hidden">
-      {/* Sidebar */}
-      <aside className="w-[280px] h-screen bg-[#1A1A1A] text-neutral flex flex-col shrink-0 z-20 shadow-2xl overflow-hidden sticky top-0">
-        <div className="p-8 flex items-center gap-4">
-          <div className="w-12 h-12 bg-neutral rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:scale-110 transition-transform cursor-pointer">
-            <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center">
-               <Zap className="w-4 h-4 text-neutral fill-neutral" />
-            </div>
-          </div>
-          <div>
-            <h1 className="font-heading font-extrabold text-xl leading-tight uppercase tracking-tighter">Enginecore</h1>
-            <p className="text-[10px] text-tertiary uppercase tracking-[0.3em] font-bold opacity-70">V-Series Portal</p>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-6 py-8 space-y-3">
-          <NavItem icon={LayoutDashboard} label="Dashboard" active onClick={() => navigate('/admin-dashboard')} />
-          <NavItem icon={Package} label="Inventory" onClick={() => navigate('/inventory')} />
-          <NavItem icon={Users} label="Vendors" onClick={() => navigate('/vendors')} />
-          <NavItem icon={ShieldCheck} label="Staff" onClick={() => navigate('/staff-management')} />
-          <NavItem icon={FileText} label="Purchases" onClick={() => navigate('/purchases')} />
-        </nav>
-
-        <div className="px-6 py-8 border-t border-white/5 space-y-6">
-          <button className="w-full bg-neutral text-black py-4 rounded-2xl font-black text-[11px] uppercase tracking-[0.2em] shadow-xl hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)] hover:-translate-y-1 transition-all active:scale-95">
-            New Part Request
-          </button>
-          
-          <div className="space-y-2">
-            <button className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-neutral hover:bg-white/5 rounded-xl transition-all text-sm font-bold group text-left">
-              <Settings className="w-4 h-4 group-hover:rotate-45 transition-transform" /> Settings
-            </button>
-            <button 
-              onClick={handleLogout}
-              className="flex items-center gap-4 px-4 py-3 w-full text-tertiary hover:text-red-400 hover:bg-red-400/5 rounded-xl transition-all text-sm font-bold group text-left"
-            >
-              <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Sign Out
-            </button>
-          </div>
-        </div>
-      </aside>
+      <Sidebar
+        logoTitle="Enginecore"
+        logoSubtitle="V-Series Portal"
+        logoIcon={Zap}
+        items={[
+          { icon: LayoutDashboard, label: "Dashboard", active: true, onClick: () => navigate('/admin-dashboard') },
+          { icon: Package, label: "Inventory", active: false, onClick: () => navigate('/inventory') },
+          { icon: Users, label: "Vendors", active: false, onClick: () => navigate('/vendors') },
+          { icon: ShieldCheck, label: "Staff", active: false, onClick: () => navigate('/staff-management') },
+          { icon: FileText, label: "Purchases", active: false, onClick: () => navigate('/purchases') },
+        ]}
+        footerItems={[
+          { icon: Settings, label: "Settings", onClick: () => {} }
+        ]}
+        handleLogout={handleLogout}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto relative h-screen custom-scrollbar">
@@ -259,85 +218,60 @@ const AdminDashboard: FC = () => {
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-secondary/10 blur-[100px] -z-10 rounded-full opacity-20 pointer-events-none"></div>
 
         {/* Header */}
-        <header className="h-24 bg-white/80 backdrop-blur-xl border-b border-secondary/20 flex items-center justify-between px-10 shrink-0 z-10 sticky top-0">
-          <div className="flex-1 max-w-xl">
-            <div className="relative group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-tertiary group-focus-within:text-primary transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search serial numbers, parts, or invoices..." 
-                className="w-full bg-[#F5F5F3]/50 border-none rounded-2xl py-3.5 pl-14 pr-6 text-sm focus:ring-4 focus:ring-primary/5 transition-all placeholder:text-tertiary font-medium"
-              />
-            </div>
-          </div>
+        <Topbar
+          searchQuery=""
+          onSearchChange={() => {}}
+          searchPlaceholder="Search serial numbers, parts, or invoices..."
+          notificationBadgeCount={stockAlerts}
+          onNotificationClick={() => setShowNotificationList(!showNotificationList)}
+          userName={user?.userName || 'Admin'}
+          userRole={user?.roles?.[0] || 'Administrator'}
+          rightActionSlot={
+            showNotificationList && (
+              <div className="absolute right-0 top-14 w-[380px] bg-white rounded-3xl border border-secondary/20 shadow-2xl p-6 z-50 animate-fade-in text-left">
+                <h4 className="font-heading font-extrabold text-lg text-primary border-b border-secondary/20 pb-3 flex justify-between items-center">
+                  <span>🔔 System Notifications</span>
+                  {stockAlerts > 0 && (
+                    <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">{stockAlerts} Alerts</span>
+                  )}
+                </h4>
 
-          <div className="flex items-center gap-10">
-            <nav className="flex items-center gap-10">
-              <button className="text-[10px] font-black uppercase tracking-[0.25em] text-tertiary hover:text-primary transition-colors">Support</button>
-            </nav>
-
-            <div className="flex items-center gap-6 pl-10 border-l border-secondary/20">
-              <div className="flex gap-2 relative">
-                <HeaderIcon icon={Bell} badge={stockAlerts > 0} onClick={() => setShowNotificationList(!showNotificationList)} />
-                <HeaderIcon icon={Settings} />
-
-                {/* Dynamic System Notification List Dropdown */}
-                {showNotificationList && (
-                  <div className="absolute right-0 top-14 w-[380px] bg-white rounded-3xl border border-secondary/20 shadow-2xl p-6 z-50 animate-fade-in">
-                    <h4 className="font-heading font-extrabold text-lg text-primary border-b border-secondary/20 pb-3 flex justify-between items-center">
-                      <span>🔔 System Notifications</span>
-                      {stockAlerts > 0 && (
-                        <span className="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold">{stockAlerts} Alerts</span>
-                      )}
-                    </h4>
-
-                    <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
-                      {stockAlerts === 0 ? (
-                        <div className="py-6 text-center">
-                          <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
-                            🟢 All inventory levels are nominal
-                          </p>
-                        </div>
-                      ) : (
-                        lowStockList.map((part) => (
-                          <div key={part.id} className="p-3 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-1">
-                            <div className="flex justify-between items-start">
-                              <span className="text-xs font-black text-red-950 uppercase tracking-tight leading-snug">{part.name}</span>
-                              <span className="text-[10px] bg-red-200 text-red-950 px-2.5 py-0.5 rounded-lg font-mono font-bold shrink-0">Qty: {part.stockQuantity}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-[9px] text-red-700 font-bold uppercase tracking-wider mt-1">
-                              <span>SKU: {part.sku}</span>
-                              <span>VEND: {part.vendorName}</span>
-                            </div>
-                          </div>
-                        ))
-                      )}
+                <div className="mt-4 space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                  {stockAlerts === 0 ? (
+                    <div className="py-6 text-center">
+                      <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider bg-emerald-50 p-3 rounded-2xl border border-emerald-100">
+                        🟢 All inventory levels are nominal
+                      </p>
                     </div>
+                  ) : (
+                    lowStockList.map((part) => (
+                      <div key={part.id} className="p-3 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-1">
+                        <div className="flex justify-between items-start">
+                          <span className="text-xs font-black text-red-950 uppercase tracking-tight leading-snug">{part.name}</span>
+                          <span className="text-[10px] bg-red-200 text-red-950 px-2.5 py-0.5 rounded-lg font-mono font-bold shrink-0">Qty: {part.stockQuantity}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[9px] text-red-700 font-bold uppercase tracking-wider mt-1">
+                          <span>SKU: {part.sku}</span>
+                          <span>VEND: {part.vendorName}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
 
-                    <button 
-                      onClick={() => {
-                        setShowNotificationList(false);
-                        navigate('/inventory');
-                      }}
-                      className="w-full mt-4 bg-black text-white text-[10px] font-black uppercase tracking-widest py-3.5 rounded-xl hover:bg-neutral transition-all text-center block"
-                    >
-                      Manage Inventory Ledger
-                    </button>
-                  </div>
-                )}
+                <button 
+                  onClick={() => {
+                    setShowNotificationList(false);
+                    navigate('/inventory');
+                  }}
+                  className="w-full mt-4 bg-black text-white text-[10px] font-black uppercase tracking-widest py-3.5 rounded-xl hover:bg-neutral transition-all text-center block"
+                >
+                  Manage Inventory Ledger
+                </button>
               </div>
-              <div className="flex items-center gap-4 ml-2 group cursor-pointer">
-                <div className="text-right">
-                  <p className="font-black text-sm leading-none">{user?.userName || 'Admin'}</p>
-                  <p className="text-[10px] text-tertiary font-bold uppercase tracking-widest mt-1">{user?.roles?.[0] || 'Administrator'}</p>
-                </div>
-                <div className="w-11 h-11 rounded-2xl overflow-hidden ring-4 ring-secondary/10 group-hover:ring-primary/10 transition-all shadow-lg">
-                  <img src={`https://ui-avatars.com/api/?name=${user?.userName || 'Admin'}&background=1a1a1a&color=fff&bold=true`} alt="User" className="w-full h-full object-cover" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
+            )
+          }
+        />
 
         <main className="flex-1 p-10">
           <div className="max-w-[1500px] mx-auto space-y-10">

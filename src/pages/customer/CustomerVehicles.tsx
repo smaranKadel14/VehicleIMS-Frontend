@@ -13,6 +13,7 @@ import {
 import customerService, { type VehicleResponse } from "../../services/customerService";
 import { optimizeAndConvertToBase64 } from "../../utils/fileHelper";
 import truckImg from "../../assets/customer-img/GT.png";
+import { Modal } from "../../components/ui/Modal";
 
 interface CustomerVehiclesProps {
   customerId: number | null;
@@ -345,197 +346,171 @@ export const CustomerVehicles: FC<CustomerVehiclesProps> = ({
       )}
     </div>
 
-    {/* Slide-over Drawer Form Modal */}
-    {isOpen && (
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
-        <div className="bg-white rounded-4xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-in max-h-[90vh] flex flex-col">
-            {/* Header info */}
-            <div className="p-6 border-b border-secondary/25 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-black text-white flex items-center justify-center font-extrabold shadow-md">
-                  <Car className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-heading font-extrabold tracking-tight">
-                    {editingVehicle ? "Modify Asset Record" : "Register Fleet Asset"}
-                  </h2>
-                  <p className="text-xs text-primary/60 font-medium">
-                    {editingVehicle
-                      ? "Update specific identity columns and telemetry properties."
-                      : "Enter vehicle metadata to connect it to the servicing index."}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="w-9 h-9 rounded-full bg-secondary/15 flex items-center justify-center hover:bg-secondary/25 transition-all text-primary/60"
-              >
-                <X className="w-4.5 h-4.5" />
-              </button>
-            </div>
+    {/* Reusable premium Modal */}
+    <Modal
+      isOpen={isOpen}
+      title={editingVehicle ? "Modify Asset Record" : "Register Fleet Asset"}
+      onClose={() => setIsOpen(false)}
+      size="lg"
+    >
+      <form onSubmit={handleFormSubmit} className="space-y-6">
+        {errorMsg && (
+          <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-800 text-xs font-bold uppercase tracking-wider animate-scale-in">
+            <AlertTriangle className="w-4.5 h-4.5 text-rose-600 shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
-            {/* Form body */}
-            <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-              {errorMsg && (
-                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl flex items-center gap-3 text-rose-800 text-xs font-bold uppercase tracking-wider animate-scale-in">
-                  <AlertTriangle className="w-4.5 h-4.5 text-rose-600 shrink-0" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
+        {/* Drag-and-drop Image Uploader */}
+        <div className="space-y-2">
+          <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
+            VEHICLE ILLUSTRATION / PHOTO
+          </label>
 
-              {/* Drag-and-drop Image Uploader */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
-                  VEHICLE ILLUSTRATION / PHOTO
-                </label>
-
-                {imageBase64 ? (
-                  <div className="relative aspect-[16/7] w-full rounded-2xl overflow-hidden border border-secondary/30 shadow-sm animate-scale-in">
-                    <img
-                      src={imageBase64}
-                      alt="Uploaded preview"
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setImageBase64(null)}
-                      className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/80 backdrop-blur text-white flex items-center justify-center hover:bg-black transition-all"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onDragEnter={handleDrag}
-                    onDragOver={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2 ${
-                      dragActive
-                        ? "border-black bg-secondary/10"
-                        : "border-secondary/40 hover:border-primary hover:bg-secondary/5"
-                    }`}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileInputChange}
-                      className="hidden"
-                    />
-                    <div className="w-10 h-10 bg-secondary/20 rounded-xl flex items-center justify-center text-primary/60">
-                      {loading ? (
-                        <RefreshCcw className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Upload className="w-5 h-5" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs font-extrabold text-primary uppercase tracking-wider">
-                        Drag & Drop or Click to Select File
-                      </p>
-                      <p className="text-[10px] text-primary/50 font-bold mt-1 uppercase">
-                        Optimized browser compression will apply automatically (JPEG, PNG, WebP)
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Specification Grid */}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
-                    Make / Brand *
-                  </label>
-                  <input
-                    value={make}
-                    onChange={(e) => setMake(e.target.value)}
-                    placeholder="e.g. Tesla"
-                    className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
-                    Model Name *
-                  </label>
-                  <input
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder="e.g. Model Y"
-                    className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
-                    Manufacture Year *
-                  </label>
-                  <input
-                    type="number"
-                    value={year}
-                    onChange={(e) => setYear(Number(e.target.value))}
-                    placeholder="e.g. 2024"
-                    className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
-                    License Plate *
-                  </label>
-                  <input
-                    value={licensePlate}
-                    onChange={(e) => setLicensePlate(e.target.value)}
-                    placeholder="e.g. BA-1-PA-9999"
-                    className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
-                    required
-                  />
-                </div>
-
-                <div className="sm:col-span-2 space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
-                    Chassis VIN Code (17 Characters) *
-                  </label>
-                  <input
-                    value={vin}
-                    onChange={(e) => setVin(e.target.value)}
-                    placeholder="17-Digit VIN Alphanumeric String"
-                    maxLength={17}
-                    className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-mono font-bold tracking-wide uppercase transition-all"
-                    required
-                  />
-                </div>
-              </div>
-            </form>
-
-            {/* Footer operations */}
-            <div className="p-6 border-t border-secondary/25 bg-secondary/10 flex justify-end gap-3 shrink-0">
+          {imageBase64 ? (
+            <div className="relative aspect-[16/7] w-full rounded-2xl overflow-hidden border border-secondary/30 shadow-sm animate-scale-in">
+              <img
+                src={imageBase64}
+                alt="Uploaded preview"
+                className="w-full h-full object-cover"
+              />
               <button
                 type="button"
-                onClick={() => setIsOpen(false)}
-                className="bg-white hover:bg-secondary/10 text-primary border border-secondary/35 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+                onClick={() => setImageBase64(null)}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/80 backdrop-blur text-white flex items-center justify-center hover:bg-black transition-all"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                onClick={handleFormSubmit}
-                disabled={loading}
-                className="bg-black hover:bg-neutral-800 text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
-              >
-                {loading && <RefreshCcw className="w-4 h-4 animate-spin" />}
-                {editingVehicle ? "Save Sync" : "Complete Registration"}
+                <X className="w-4 h-4" />
               </button>
             </div>
+          ) : (
+            <div
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-2 ${
+                dragActive
+                  ? "border-black bg-secondary/10"
+                  : "border-secondary/40 hover:border-primary hover:bg-secondary/5"
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+              <div className="w-10 h-10 bg-secondary/20 rounded-xl flex items-center justify-center text-primary/60">
+                {loading ? (
+                  <RefreshCcw className="w-5 h-5 animate-spin" />
+                ) : (
+                  <Upload className="w-5 h-5" />
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-extrabold text-primary uppercase tracking-wider">
+                  Drag & Drop or Click to Select File
+                </p>
+                <p className="text-[10px] text-primary/50 font-bold mt-1 uppercase">
+                  Optimized browser compression will apply automatically (JPEG, PNG, WebP)
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Specification Grid */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
+              Make / Brand *
+            </label>
+            <input
+              value={make}
+              onChange={(e) => setMake(e.target.value)}
+              placeholder="e.g. Tesla"
+              className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
+              Model Name *
+            </label>
+            <input
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="e.g. Model Y"
+              className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
+              Manufacture Year *
+            </label>
+            <input
+              type="number"
+              value={year}
+              onChange={(e) => setYear(Number(e.target.value))}
+              placeholder="e.g. 2023"
+              className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
+              License Plate *
+            </label>
+            <input
+              value={licensePlate}
+              onChange={(e) => setLicensePlate(e.target.value)}
+              placeholder="e.g. BA-1-PA-9999"
+              className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-semibold transition-all"
+              required
+            />
+          </div>
+
+          <div className="sm:col-span-2 space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-primary/50">
+              Chassis VIN Code (17 Characters) *
+            </label>
+            <input
+              value={vin}
+              onChange={(e) => setVin(e.target.value)}
+              placeholder="17-Digit VIN Alphanumeric String"
+              maxLength={17}
+              className="input w-full bg-secondary/10 px-4 py-3 rounded-xl outline-none border border-secondary/20 focus:border-black/50 text-sm font-mono font-bold tracking-wide uppercase transition-all"
+              required
+            />
           </div>
         </div>
-      )}
+
+        {/* Footer operations */}
+        <div className="pt-6 border-t border-secondary/25 flex justify-end gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="bg-white hover:bg-secondary/10 text-primary border border-secondary/35 px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-black hover:bg-neutral-800 text-white px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+          >
+            {loading && <RefreshCcw className="w-4 h-4 animate-spin" />}
+            {editingVehicle ? "Save Sync" : "Complete Registration"}
+          </button>
+        </div>
+      </form>
+    </Modal>
     </>
   );
 };
