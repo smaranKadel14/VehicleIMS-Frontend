@@ -8,10 +8,7 @@ import {
   BarChart3, 
   Clock, 
   CheckCircle, 
-  TrendingUp, 
-  ShieldCheck, 
-  Award,
-  Zap
+  Award
 } from 'lucide-react';
 import authService from '../../services/authService';
 import { Sidebar } from '../../components/layout/Sidebar';
@@ -70,8 +67,8 @@ export default function StaffPerformance() {
         />
 
         {/* Main Scroll Panel */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "40px 32px", boxSizing: "border-box" }}>
-          <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 40px", boxSizing: "border-box" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
             
             <div style={{ marginBottom: 36 }}>
               <h1 style={{ fontSize: 32, fontWeight: 800, margin: 0, letterSpacing: "-0.8px" }}>Technician Performance</h1>

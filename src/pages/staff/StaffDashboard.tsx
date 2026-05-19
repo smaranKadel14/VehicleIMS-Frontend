@@ -271,9 +271,9 @@ const StaffDashboard: FC = () => {
         />
 
         {/* Main Scroll Panel */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "40px 32px", boxSizing: "border-box" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "24px 32px 40px", boxSizing: "border-box" }}>
           
-          <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div style={{ maxWidth: 1400, margin: "0 auto" }}>
             
             {/* Page Greeting */}
             <div style={{ marginBottom: 36 }}>

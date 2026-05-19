@@ -412,13 +412,19 @@ export default function PartsManagement() {
           <div style={{ fontSize: 11, color: "#9ca3af", fontWeight: 600, letterSpacing: "0.08em", marginBottom: 6 }}>WAREHOUSE 04 – BERLIN DISTRICT</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
             <h1 style={{ fontSize: 34, fontWeight: 800, margin: 0, letterSpacing: "-1px" }}>Inventory Management</h1>
-            <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <button 
+                onClick={() => setModal("add")}
+                style={{ padding: "9px 18px", background: "#111827", color: "#FFFFFF", border: "none", borderRadius: 8, fontSize: 12.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, transition: "all 0.2s" }}
+              >
+                <Boxes className="w-4 h-4" /> + Add New Part
+              </button>
               <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
-                style={{ padding: "8px 16px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#fff" }}>
+                style={{ padding: "8px 16px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#fff", outline: "none" }}>
                 {CATEGORY_FILTERS.map((o) => <option key={o}>{o}</option>)}
               </select>
               <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}
-                style={{ padding: "8px 16px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#fff" }}>
+                style={{ padding: "8px 16px", border: "1.5px solid #e5e7eb", borderRadius: 8, fontSize: 12, fontWeight: 600, fontFamily: "inherit", cursor: "pointer", background: "#fff", outline: "none" }}>
                 {STOCK_FILTERS.map((o) => <option key={o}>{o}</option>)}
               </select>
             </div>
