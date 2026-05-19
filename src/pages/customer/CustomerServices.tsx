@@ -33,16 +33,22 @@ export const CustomerServices: FC<CustomerServicesProps> = ({
   // Part Request Form States
   const [partName, setPartName] = useState<string>('');
   const [partUrgency, setPartUrgency] = useState<string>('Priority');
+  const [partQuantity, setPartQuantity] = useState<number>(1);
+  const [partVehicleId, setPartVehicleId] = useState<string>('');
   const [partSuccess, setPartSuccess] = useState<string | null>(null);
   const [partError, setPartError] = useState<string | null>(null);
   const [partLoading, setPartLoading] = useState<boolean>(false);
 
   useEffect(() => {
-    if (vehicles.length > 0 && !selectedVehicleId) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedVehicleId(vehicles[0].id.toString());
+    if (vehicles.length > 0) {
+      if (!selectedVehicleId) {
+        setSelectedVehicleId(vehicles[0].id.toString());
+      }
+      if (!partVehicleId) {
+        setPartVehicleId(vehicles[0].id.toString());
+      }
     }
-  }, [vehicles, selectedVehicleId]);
+  }, [vehicles, selectedVehicleId, partVehicleId]);
 
   const handleBookAppointment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,11 +106,14 @@ export const CustomerServices: FC<CustomerServicesProps> = ({
       setPartSuccess(null);
 
       const res = await customerService.submitPartRequest(customerId, {
-        partName: `${partName.trim()} (${partUrgency} Urgency)`
+        partName: `${partName.trim()} (${partUrgency} Urgency)`,
+        quantity: partQuantity,
+        vehicleId: partVehicleId ? parseInt(partVehicleId) : undefined
       });
 
       setPartSuccess(res.message || "Rare part sourced and queued successfully!");
       setPartName('');
+      setPartQuantity(1);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setPartError(err.response?.data?.message || err.message || "Failed to submit part request");
@@ -268,6 +277,46 @@ export const CustomerServices: FC<CustomerServicesProps> = ({
                 onChange={(e) => setPartName(e.target.value)}
                 className="w-full bg-[#F5F5F3] border-none rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-primary/10 font-bold transition-all outline-none"
               />
+            </div>
+
+            {/* Associated Fleet Vehicle Selector */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary">Select Associated Vehicle</label>
+              <select 
+                value={partVehicleId} 
+                onChange={(e) => setPartVehicleId(e.target.value)}
+                className="w-full bg-[#F5F5F3] border-none rounded-2xl py-4 px-5 text-sm focus:ring-4 focus:ring-primary/10 font-bold transition-all outline-none"
+              >
+                {vehicles.length > 0 ? (
+                  vehicles.map(v => (
+                    <option key={v.id} value={v.id}>{v.name} (VIN: {v.vin})</option>
+                  ))
+                ) : (
+                  <option value="">No registered vehicles found</option>
+                )}
+              </select>
+            </div>
+
+            {/* Premium Quantity Selector */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-tertiary">Required Quantity</label>
+              <div className="flex items-center gap-4 bg-[#F5F5F3] rounded-2xl p-2 max-w-[200px] shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setPartQuantity(q => Math.max(1, q - 1))}
+                  className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-lg hover:bg-black hover:text-white hover:shadow-md transition-all active:scale-90"
+                >
+                  -
+                </button>
+                <span className="flex-1 text-center font-extrabold text-sm text-primary">{partQuantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setPartQuantity(q => q + 1)}
+                  className="w-10 h-10 bg-white rounded-xl flex items-center justify-center font-black text-lg hover:bg-black hover:text-white hover:shadow-md transition-all active:scale-90"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {/* Urgency Level chips */}

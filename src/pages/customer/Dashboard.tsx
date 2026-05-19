@@ -26,9 +26,11 @@ import truckImg from '../../assets/customer-img/GT.png';
 import dashboardService from '../../services/dashboardService';
 import type { DashboardStats, Vehicle, Transaction } from '../../services/dashboardService';
 import authService from '../../services/authService';
-import customerService from '../../services/customerService';
+import customerService, { type VehicleResponse } from '../../services/customerService';
 import { CustomerServices } from './CustomerServices';
 import { CustomerHistory } from './CustomerHistory';
+import { CustomerVehicles } from './CustomerVehicles';
+import { Car } from 'lucide-react';
 import type { ServiceHistoryItem } from './CustomerHistory';
 
 const CustomerDashboard: FC = () => {
@@ -37,11 +39,12 @@ const CustomerDashboard: FC = () => {
   const user = authService.getCurrentUser();
   
   // Navigation State
-  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'history'>('dashboard');
+  const [activeView, setActiveView] = useState<'dashboard' | 'services' | 'history' | 'garage'>('dashboard');
 
   // Backend States
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [dbVehicles, setDbVehicles] = useState<VehicleResponse[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [customerId, setCustomerId] = useState<number | null>(null);
   const [dbServiceHistory, setDbServiceHistory] = useState<ServiceHistoryItem[]>([]);
@@ -72,6 +75,7 @@ const CustomerDashboard: FC = () => {
         if (searchRes && searchRes.length > 0) {
           const matchedCust = searchRes[0];
           setCustomerId(matchedCust.id);
+          setDbVehicles(matchedCust.vehicles || []);
           
           // Fetch completed service history from DB
           const historyData = await customerService.getHistory(matchedCust.id);
@@ -98,7 +102,7 @@ const CustomerDashboard: FC = () => {
     fetchData();
     
     interface LocationState {
-      activeView?: 'dashboard' | 'services' | 'history';
+      activeView?: 'dashboard' | 'services' | 'history' | 'garage';
     }
     const state = location.state as LocationState;
     if (state && state.activeView) {
@@ -179,6 +183,13 @@ const CustomerDashboard: FC = () => {
             <Clock className="w-5 h-5" />
             <span className="text-sm tracking-tight">History & Reviews</span>
           </button>
+          <button 
+            onClick={() => setActiveView('garage')}
+            className={`flex items-center gap-4 w-full px-5 py-4 rounded-2xl transition-all duration-150 ease-out group ${activeView === 'garage' ? 'bg-neutral text-black font-black shadow-xl' : 'text-tertiary hover:text-neutral hover:bg-white/5'}`}
+          >
+            <Car className="w-5 h-5" />
+            <span className="text-sm tracking-tight">My Garage</span>
+          </button>
         </nav>
 
         <div className="px-6 py-8 border-t border-white/5 space-y-6">
@@ -247,6 +258,13 @@ const CustomerDashboard: FC = () => {
               >
                 History & Reviews
                 {activeView === 'history' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
+              </button>
+              <button 
+                onClick={() => setActiveView('garage')}
+                className={`text-[10px] font-black uppercase tracking-[0.25em] transition-all relative py-2 ${activeView === 'garage' ? 'text-primary' : 'text-tertiary hover:text-primary'}`}
+              >
+                My Garage
+                {activeView === 'garage' && <span className="absolute -bottom-1 left-0 w-full h-1 bg-primary rounded-full"></span>}
               </button>
             </nav>
 
@@ -352,7 +370,10 @@ const CustomerDashboard: FC = () => {
                         <h3 className="text-3xl font-heading font-extrabold tracking-tighter">Active Vehicles</h3>
                         <p className="text-base text-tertiary font-medium">Real-time status of your registered assets.</p>
                       </div>
-                      <button className="px-5 py-2.5 bg-white border border-secondary/30 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all shadow-sm">
+                      <button 
+                        onClick={() => setActiveView('garage')}
+                        className="px-5 py-2.5 bg-white border border-secondary/30 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-black hover:text-white hover:border-black transition-all shadow-sm"
+                      >
                         Manage All
                       </button>
                     </div>
@@ -494,6 +515,15 @@ const CustomerDashboard: FC = () => {
                 customerId={customerId}
                 dbServiceHistory={dbServiceHistory}
                 transactions={transactions}
+                fetchData={fetchData}
+              />
+            )}
+
+            {/* GARAGE VIEW: Vehicle Fleet Management */}
+            {activeView === 'garage' && (
+              <CustomerVehicles 
+                customerId={customerId}
+                vehicles={dbVehicles}
                 fetchData={fetchData}
               />
             )}

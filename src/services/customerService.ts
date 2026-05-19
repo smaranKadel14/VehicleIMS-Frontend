@@ -7,6 +7,7 @@ export interface VehicleResponse {
   year: number;
   vin: string;
   licensePlate: string;
+  image?: string;
 }
 
 export interface CustomerResponse {
@@ -101,7 +102,7 @@ const customerService = {
 
   submitPartRequest: async (
     customerId: number,
-    data: { partName: string; partId?: number }
+    data: { partName: string; partId?: number; quantity: number; vehicleId?: number }
   ) => {
     const response = await api.post<{ message: string }>(`/PartRequest/${customerId}`, data);
     return response.data;
@@ -112,6 +113,33 @@ const customerService = {
     data: { rating: number; comment?: string; partId?: number }
   ) => {
     const response = await api.post<{ message: string }>(`/Review/${customerId}`, data);
+    return response.data;
+  },
+
+  addVehicle: async (customerId: number, data: Omit<VehicleResponse, "id">) => {
+    const response = await api.post<VehicleResponse>(`/Customer/${customerId}/vehicles`, data);
+    return response.data;
+  },
+
+  updateVehicle: async (
+    customerId: number,
+    vehicleId: number,
+    data: Omit<VehicleResponse, "id">
+  ) => {
+    const response = await api.put<VehicleResponse>(`/Customer/${customerId}/vehicles/${vehicleId}`, data);
+    return response.data;
+  },
+
+  deleteVehicle: async (customerId: number, vehicleId: number) => {
+    const response = await api.delete<{ message: string }>(`/Customer/${customerId}/vehicles/${vehicleId}`);
+    return response.data;
+  },
+
+  updateCustomer: async (
+    customerId: number,
+    data: { firstName: string; lastName: string; phone: string; address: string }
+  ) => {
+    const response = await api.put<CustomerResponse>(`/Customer/${customerId}`, data);
     return response.data;
   },
 };
