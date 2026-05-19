@@ -192,7 +192,8 @@ export const CustomerVehicles: FC<CustomerVehiclesProps> = ({
   };
 
   return (
-    <div className="space-y-8 animate-fade-in pb-12">
+    <>
+      <div className="space-y-8 animate-fade-in pb-12">
       {/* Upper header action section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -342,11 +343,12 @@ export const CustomerVehicles: FC<CustomerVehiclesProps> = ({
           ))}
         </div>
       )}
+    </div>
 
-      {/* Slide-over Drawer Form Modal */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-4xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-in max-h-[90vh] flex flex-col">
+    {/* Slide-over Drawer Form Modal */}
+    {isOpen && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fade-in">
+        <div className="bg-white rounded-4xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-in max-h-[90vh] flex flex-col">
             {/* Header info */}
             <div className="p-6 border-b border-secondary/25 flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -534,6 +536,6 @@ export const CustomerVehicles: FC<CustomerVehiclesProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
